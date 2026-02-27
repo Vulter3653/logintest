@@ -29,7 +29,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /* 관리자 설정 */
-const ADMIN_EMAIL = "vulter3653@gmail.com"; // 관리자 이메일 주소
+const ADMIN_EMAIL = "vulter3653@gmail.com";
 
 /* 게시판 정의 */
 const BOARDS = [
@@ -79,8 +79,6 @@ class ProfileSection extends HTMLElement {
     `;
     const update = () => { this.currentStyle = this.shadowRoot.getElementById('style-select').value; this.currentSeed = this.shadowRoot.getElementById('seed-input').value; this.shadowRoot.getElementById('preview').src = getAvatarUrl(this.currentStyle, this.currentSeed); };
     this.shadowRoot.getElementById('style-select').onchange = update; this.shadowRoot.getElementById('seed-input').oninput = update;
-    
-    // 저장 로직
     this.shadowRoot.getElementById('save-profile').onclick = async () => {
       const btn = this.shadowRoot.getElementById('save-profile'); btn.disabled = true;
       try {
@@ -92,21 +90,13 @@ class ProfileSection extends HTMLElement {
         alert("정보가 변경되었습니다!"); location.reload();
       } catch (e) { alert("저장 실패"); btn.disabled = false; }
     };
-
-    // 탈퇴 로직 (모든 글 삭제 포함)
     this.shadowRoot.getElementById('delete-account').onclick = async () => {
       if (confirm("탈퇴하실거에요..? 작성하신 모든 글이 삭제되며 복구할 수 없습니다.")) {
         try {
           const snaps = await getDocs(query(collection(db, "comments"), where("authorUid", "==", user.uid)));
-          if (!snaps.empty) {
-            const batch = writeBatch(db);
-            snaps.forEach(d => batch.delete(d.ref));
-            await batch.commit();
-          }
-          await deleteUser(user);
-          alert("그동안 감사했습니다. 계정과 모든 글이 삭제되었습니다.");
-          location.reload();
-        } catch (e) { alert("최근 로그인 기록이 필요합니다. 다시 로그인 후 시도해 주세요."); }
+          if (!snaps.empty) { const batch = writeBatch(db); snaps.forEach(d => batch.delete(d.ref)); await batch.commit(); }
+          await deleteUser(user); alert("그동안 감사했습니다. 모든 데이터가 삭제되었습니다."); location.reload();
+        } catch (e) { alert("재인증이 필요합니다. 다시 로그인 후 시도해 주세요."); }
       }
     };
     this.shadowRoot.getElementById('back-to-feed').onclick = () => updateView('feed');
@@ -192,7 +182,7 @@ class CommentsSection extends HTMLElement {
         <div class="action-link" id="like-${id}" style="color:${this.currentUser && data.likes?.includes(this.currentUser.uid) ? '#ff4d4d' : 'inherit'}">❤️ ${data.likes?.length || 0}</div>
         <div class="action-link" id="rep-${id}">💬 답글</div>
         ${isMine ? `<div class="action-link" id="ed-${id}">수정</div><div class="action-link" style="color:#ff4d4d" id="del-${id}">삭제</div>` : ''}
-        ${isAdmin && !isMine ? `<div class="btn-admin" id="admin-del-all-${id}">관리자: 이 사용자의 모든 글 삭제</div>` : ''}
+        ${isAdmin && !isMine ? `<div class="btn-admin" id="admin-del-all-${id}">관리자: 모든 글 삭제</div>` : ''}
       </div>
       <div id="reply-box-${id}"></div>
     `;
@@ -203,31 +193,27 @@ class CommentsSection extends HTMLElement {
       this.shadowRoot.getElementById(`del-${id}`).onclick = async () => { if (confirm("삭제하실거에요..?")) await deleteDoc(doc(db, "comments", id)); };
       this.shadowRoot.getElementById(`ed-${id}`).onclick = () => this.startEdit(id, data.content);
     }
-    // 관리자 전용 일괄 삭제 버튼
     if (isAdmin && !isMine) {
-      this.shadowRoot.getElementById(`admin-del-all-${id}`).onclick = () => this.adminDeleteUserPosts(data.authorUid, data.authorName);
-    }
-  }
-
-  async adminDeleteUserPosts(uid, name) {
-    if (confirm(`관리자 권한: [${name}] 사용자가 작성한 모든 글을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.`)) {
-      try {
-        const q = query(collection(db, "comments"), where("authorUid", "==", uid));
-        const snaps = await getDocs(q);
-        if (!snaps.empty) {
-          const batch = writeBatch(db);
-          snaps.forEach(d => batch.delete(d.ref));
-          await batch.commit();
-          alert(`사용자 [${name}]의 모든 게시물이 삭제되었습니다.`);
+      this.shadowRoot.getElementById(`admin-del-all-${id}`).onclick = async () => {
+        if (confirm(`관리자: [${data.authorName}]님의 모든 글을 삭제할까요?`)) {
+          const snaps = await getDocs(query(collection(db, "comments"), where("authorUid", "==", data.authorUid)));
+          if (!snaps.empty) { const batch = writeBatch(db); snaps.forEach(d => batch.delete(d.ref)); await batch.commit(); alert("삭제 완료"); }
         }
-      } catch (e) { alert("삭제 실패"); }
+      };
     }
   }
-
   showReplyBox(targetId, targetName) {
     if (!this.currentUser) return window.dispatchEvent(new CustomEvent('show-login'));
+    const isVerified = this.currentUser.emailVerified || this.currentUser.providerData[0]?.providerId === 'google.com';
     const box = this.shadowRoot.getElementById(`reply-box-${targetId}`);
     if (box.innerHTML !== '') { box.innerHTML = ''; return; }
+    
+    // 이메일 미인증 시 안내 메시지 표시
+    if (!isVerified) {
+      box.innerHTML = `<div style="margin-top:10px; font-size:0.8rem; color:#ff4d4d; border:1px dashed #ff4d4d; padding:10px; border-radius:8px;">⚠️ 답글을 달려면 이메일 인증이 필요합니다. 메일함을 확인해 주세요!</div>`;
+      return;
+    }
+
     box.innerHTML = `<div style="margin-top:8px;"><textarea id="rin-${targetId}" placeholder="${targetName}님에게 답글 작성..." style="min-height:40px; font-size:0.9rem;">@${targetName} </textarea><div style="display:flex; justify-content:flex-end; gap:8px; margin-top:5px;"><button id="rcan-${targetId}" style="font-size:0.75rem; cursor:pointer; background:none; border:none; color:var(--text-dim);">취소</button><button class="btn-post" style="padding:4px 12px; font-size:0.75rem; margin-top:0;" id="rsub-${targetId}">등록</button></div></div>`;
     this.shadowRoot.getElementById(`rcan-${targetId}`).onclick = () => box.innerHTML = '';
     this.shadowRoot.getElementById(`rsub-${targetId}`).onclick = () => this.postComment(this.shadowRoot.getElementById(`rin-${targetId}`), targetId);
@@ -236,8 +222,8 @@ class CommentsSection extends HTMLElement {
     const cEl = this.shadowRoot.getElementById(`content-${id}`); const aEl = this.shadowRoot.getElementById(`act-${id}`); const oC = cEl.innerHTML; const oA = aEl.innerHTML;
     cEl.innerHTML = `<textarea id="in-${id}" style="min-height:50px; font-size:0.95rem;">${old}</textarea>`;
     aEl.innerHTML = `<div style="display:flex; justify-content:flex-end; gap:10px;"><button id="can-${id}" style="font-size:0.75rem; color:var(--text-dim); background:none; border:none; cursor:pointer;">취소</button><button id="sav-${id}" style="font-size:0.75rem; color:var(--primary); font-weight:700; background:none; border:none; cursor:pointer;">저장</button></div>`;
-    this.shadowRoot.getElementById(`can-${id}`).onclick = () => { cEl.innerHTML = oC; aEl.innerHTML = oA; };
-    this.shadowRoot.getElementById(`sav-${id}`).onclick = async () => { const val = this.shadowRoot.getElementById(`in-${id}`).value.trim(); if (val) await updateDoc(doc(db, "comments", id), { content: val }); };
+    this.shadowRoot.getElementById('can-'+id).onclick = () => { cEl.innerHTML = oC; aEl.innerHTML = oA; };
+    this.shadowRoot.getElementById('sav-'+id).onclick = async () => { const val = this.shadowRoot.getElementById('in-'+id).value.trim(); if (val) await updateDoc(doc(db, "comments", id), { content: val }); };
   }
   escapeHTML(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
 }
@@ -255,7 +241,7 @@ class LoginScreen extends HTMLElement {
   render() {
     if (!this.isVisible) { this.shadowRoot.innerHTML = ''; return; }
     this.shadowRoot.innerHTML = `
-      <style>@import url('/style.css'); .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); } .login-card { background: var(--card-bg); border-radius: 24px; padding: 30px; width: min(380px, 90%); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); position: relative; } h2 { text-align: center; margin-bottom: 20px; color: var(--primary); font-size: 1.4rem; } input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); box-sizing: border-box; margin-bottom: 12px; font-size: 0.9rem; } .btn-submit { width: 100%; padding: 14px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; } .btn-close { position: absolute; top: 12px; right: 12px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-size: 1.4rem; } .btn-google { width: 100%; padding: 10px; background: #fff; color: #000; border: 1px solid #ddd; border-radius: 10px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; }</style>
+      <style>@import url('/style.css'); .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); } .login-card { background: var(--card-bg); border-radius: 24px; padding: 30px; width: min(380px, 90%); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); position: relative; } h2 { text-align: center; margin-bottom: 20px; color: var(--primary); font-size: 1.4rem; } input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); box-sizing: border-box; margin-bottom: 12px; font-size: 0.9rem; } .btn-submit { width: 100%; padding: 14px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; } .btn-close { position: absolute; top: 12px; right: 12px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-size: 1.4rem; } .btn-google { width: 100%; padding: 10px; background: #fff; color: #000; border: 1px solid #ddd; border-radius: 12px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; }</style>
       <div class="overlay"><div class="login-card"><button class="btn-close" id="close-btn">&times;</button><h2>${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '회원가입' : '비밀번호 찾기'}</h2><form id="auth-form">${this.mode === 'signup' ? `<input type="text" id="nickname" placeholder="닉네임" required>` : ''}<input type="email" id="email" placeholder="이메일" required>${this.mode !== 'reset' ? `<input type="password" id="password" placeholder="비밀번호" required minlength="6">` : ''}<button type="submit" id="submit-btn" class="btn-submit">${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '가입하기' : '발송'}</button></form><button id="google-btn" class="btn-google"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="16"> Google 계정 사용</button><div style="text-align:center; margin-top:15px; font-size:0.8rem; color:var(--text-dim);"><a id="toggle-link" style="color:var(--primary); cursor:pointer;">${this.mode === 'login' ? '회원가입 하러가기' : '로그인 하러가기'}</a></div></div></div>
     `;
     this.shadowRoot.getElementById('close-btn').onclick = () => { this.isVisible = false; this.render(); };

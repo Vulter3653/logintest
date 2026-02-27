@@ -8,7 +8,8 @@ import {
   signInWithPopup, 
   updateProfile,
   sendEmailVerification,
-  getAdditionalUserInfo
+  getAdditionalUserInfo,
+  deleteUser
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { 
   collection, 
@@ -27,6 +28,9 @@ import {
   writeBatch
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+/* 관리자 설정 */
+const ADMIN_EMAIL = "vulter3653@gmail.com"; // 관리자 이메일 주소
+
 /* 게시판 정의 */
 const BOARDS = [
   { id: 'free', name: '자유게시판', icon: '💬' },
@@ -37,34 +41,11 @@ const BOARDS = [
 
 /* 아바타 스타일 */
 const AVATAR_STYLES = [
-  { id: 'avataaars', name: '사람 (기본)' },
-  { id: 'adventurer', name: '모험가' },
-  { id: 'open-peeps', name: '스케치 인물' },
-  { id: 'personas', name: '캐릭터' },
-  { id: 'lorelei', name: '귀여운 애니' },
-  { id: 'bottts', name: '로봇' },
-  { id: 'pixel-art', name: '픽셀 아트' },
-  { id: 'miniavs', name: '미니 인물' },
-  { id: 'big-smile', name: '빅 스마일' },
-  { id: 'fun-emoji', name: '이모지' },
-  { id: 'notionists', name: '노션 스타일' },
-  { id: 'croodles', name: '낙서형' },
-  { id: 'thumbs', name: '추상화' },
-  { id: 'identicon', name: '기하학 패턴' },
-  { id: 'rings', name: '원형 패턴' }
+  { id: 'avataaars', name: '사람' }, { id: 'adventurer', name: '모험가' }, { id: 'open-peeps', name: '스케치' }, { id: 'personas', name: '캐릭터' }, { id: 'lorelei', name: '애니' }, { id: 'bottts', name: '로봇' }, { id: 'pixel-art', name: '픽셀' }, { id: 'miniavs', name: '미니' }, { id: 'big-smile', name: '미소' }, { id: 'fun-emoji', name: '이모지' }, { id: 'notionists', name: '노션' }, { id: 'croodles', name: '낙서' }, { id: 'thumbs', name: '추상화' }, { id: 'identicon', name: '기하학' }, { id: 'rings', name: '원형' }
 ];
 
-const initTheme = () => {
-  const savedTheme = localStorage.getItem('theme') || 'light';
-  document.documentElement.setAttribute('data-theme', savedTheme);
-};
-const toggleTheme = () => {
-  const current = document.documentElement.getAttribute('data-theme');
-  const next = current === 'dark' ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', next);
-  localStorage.setItem('theme', next);
-  window.dispatchEvent(new CustomEvent('theme-update', { detail: { theme: next } }));
-};
+const initTheme = () => { const savedTheme = localStorage.getItem('theme') || 'light'; document.documentElement.setAttribute('data-theme', savedTheme); };
+const toggleTheme = () => { const current = document.documentElement.getAttribute('data-theme'); const next = current === 'dark' ? 'light' : 'dark'; document.documentElement.setAttribute('data-theme', next); localStorage.setItem('theme', next); window.dispatchEvent(new CustomEvent('theme-update', { detail: { theme: next } })); };
 initTheme();
 
 const getAvatarUrl = (style, seed) => `https://api.dicebear.com/7.x/${style || 'avataaars'}/svg?seed=${seed || 'default'}`;
@@ -84,7 +65,7 @@ class ProfileSection extends HTMLElement {
       this.currentSeed = seedMatch ? seedMatch[1] : user.uid.substring(0, 5);
     }
     this.shadowRoot.innerHTML = `
-      <style>@import url('/style.css'); :host { display: block; width: 100%; padding: 40px 0; } .profile-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: clamp(20px, 5%, 40px); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); text-align: center; } .avatar-preview { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--primary); background: #fff; margin-bottom: 20px; } .form-group { text-align: left; margin-bottom: 20px; } select, input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(128,128,128,0.2); background: var(--card-bg); color: var(--text-main); font-family: inherit; margin-bottom: 10px; } .btn-save { width: 100%; padding: 16px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 12px; cursor: pointer; margin-top: 20px; transition: 0.3s; }</style>
+      <style>@import url('/style.css'); :host { display: block; width: 100%; padding: 40px 0; } .profile-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: clamp(20px, 5%, 40px); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); text-align: center; } .avatar-preview { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--primary); background: #fff; margin-bottom: 20px; } .form-group { text-align: left; margin-bottom: 20px; } select, input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(128,128,128,0.2); background: var(--card-bg); color: var(--text-main); font-family: inherit; margin-bottom: 10px; } .btn-save { width: 100%; padding: 16px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 12px; cursor: pointer; margin-top: 20px; transition: 0.3s; } .btn-danger { background: none; border: 1px solid #ff4d4d; color: #ff4d4d; padding: 10px; border-radius: 10px; cursor: pointer; font-size: 0.8rem; margin-top: 40px; width: 100%; }</style>
       <div class="profile-card">
         <h2>프로필 설정</h2>
         <img class="avatar-preview" id="preview" src="${getAvatarUrl(this.currentStyle, this.currentSeed)}">
@@ -93,10 +74,13 @@ class ProfileSection extends HTMLElement {
         <div class="form-group"><label>닉네임</label><input type="text" id="new-nickname" value="${user.displayName || ''}"></div>
         <button id="save-profile" class="btn-save">모든 내용 저장</button>
         <button id="back-to-feed" style="background:none; border:none; color:var(--text-dim); cursor:pointer; margin-top:20px; text-decoration:underline;">피드로 돌아가기</button>
+        <button id="delete-account" class="btn-danger">회원 탈퇴 및 모든 글 삭제</button>
       </div>
     `;
     const update = () => { this.currentStyle = this.shadowRoot.getElementById('style-select').value; this.currentSeed = this.shadowRoot.getElementById('seed-input').value; this.shadowRoot.getElementById('preview').src = getAvatarUrl(this.currentStyle, this.currentSeed); };
     this.shadowRoot.getElementById('style-select').onchange = update; this.shadowRoot.getElementById('seed-input').oninput = update;
+    
+    // 저장 로직
     this.shadowRoot.getElementById('save-profile').onclick = async () => {
       const btn = this.shadowRoot.getElementById('save-profile'); btn.disabled = true;
       try {
@@ -107,6 +91,23 @@ class ProfileSection extends HTMLElement {
         if (!snaps.empty) { const batch = writeBatch(db); snaps.forEach(d => batch.update(d.ref, { authorName: newName, authorPhoto: photoURL })); await batch.commit(); }
         alert("정보가 변경되었습니다!"); location.reload();
       } catch (e) { alert("저장 실패"); btn.disabled = false; }
+    };
+
+    // 탈퇴 로직 (모든 글 삭제 포함)
+    this.shadowRoot.getElementById('delete-account').onclick = async () => {
+      if (confirm("탈퇴하실거에요..? 작성하신 모든 글이 삭제되며 복구할 수 없습니다.")) {
+        try {
+          const snaps = await getDocs(query(collection(db, "comments"), where("authorUid", "==", user.uid)));
+          if (!snaps.empty) {
+            const batch = writeBatch(db);
+            snaps.forEach(d => batch.delete(d.ref));
+            await batch.commit();
+          }
+          await deleteUser(user);
+          alert("그동안 감사했습니다. 계정과 모든 글이 삭제되었습니다.");
+          location.reload();
+        } catch (e) { alert("최근 로그인 기록이 필요합니다. 다시 로그인 후 시도해 주세요."); }
+      }
     };
     this.shadowRoot.getElementById('back-to-feed').onclick = () => updateView('feed');
   }
@@ -124,7 +125,7 @@ class CommentsSection extends HTMLElement {
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
     const isVerified = this.currentUser && (this.currentUser.emailVerified || this.currentUser.providerData[0]?.providerId === 'google.com');
     this.shadowRoot.innerHTML = `
-      <style>@import url('/style.css'); :host { display: block; width: 100%; padding: 20px 0; } .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; flex-wrap: wrap; } .header-info { flex: 1; min-width: 180px; } .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; } .user-chip { display: flex; align-items: center; gap: 8px; background: rgba(128,128,128,0.08); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(128,128,128,0.1); white-space: nowrap; flex-shrink: 0; } .nav-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; } .nickname { font-weight: 700; color: var(--primary); font-size: 0.85rem; cursor: pointer; text-decoration: underline; } .btn-logout-small { background: none; border: 1px solid var(--text-dim); color: var(--text-dim); padding: 3px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; transition: 0.2s; } .board-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; } .tab { padding: 8px 16px; border-radius: 20px; background: var(--card-bg); border: 1px solid rgba(128,128,128,0.1); color: var(--text-dim); cursor: pointer; white-space: nowrap; font-size: 0.85rem; transition: 0.3s; } .tab.active { background: var(--primary); color: var(--bg-color); font-weight: 700; } .comment-input-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 30px; position: sticky; top: 10px; z-index: 10; } textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 12px; color: var(--text-main); font-family: inherit; font-size: 0.95rem; resize: none; min-height: 50px; } .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; margin-top: 8px; float: right; font-size: 0.9rem; } .comment-item { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 10px; border-left: 3px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.02); transition: 0.3s; position: relative; } .comment-item[data-depth="1"] { margin-left: 30px; border-left-color: var(--secondary); background: rgba(128,128,128,0.01); } .comment-item[data-depth="2"] { margin-left: 60px; border-left-color: var(--accent); background: rgba(128,128,128,0.02); } .item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; } .item-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(128,128,128,0.1); } .author-name { font-weight: 700; color: var(--primary); font-size: 0.85rem; } .timestamp { font-size: 0.65rem; color: var(--text-dim); margin-left: auto; } .content { color: var(--text-main); font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; margin-bottom: 10px; } .footer-actions { display: flex; gap: 12px; font-size: 0.75rem; color: var(--text-dim); } .action-link { cursor: pointer; opacity: 0.8; } .mention { color: var(--primary); font-weight: 700; margin-right: 5px; }</style>
+      <style>@import url('/style.css'); :host { display: block; width: 100%; padding: 20px 0; } .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; flex-wrap: wrap; } .header-info { flex: 1; min-width: 180px; } .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; } .user-chip { display: flex; align-items: center; gap: 8px; background: rgba(128,128,128,0.08); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(128,128,128,0.1); white-space: nowrap; flex-shrink: 0; } .nav-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; } .nickname { font-weight: 700; color: var(--primary); font-size: 0.85rem; cursor: pointer; text-decoration: underline; } .btn-logout-small { background: none; border: 1px solid var(--text-dim); color: var(--text-dim); padding: 3px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; transition: 0.2s; } .board-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; } .tab { padding: 8px 16px; border-radius: 20px; background: var(--card-bg); border: 1px solid rgba(128,128,128,0.1); color: var(--text-dim); cursor: pointer; white-space: nowrap; font-size: 0.85rem; transition: 0.3s; } .tab.active { background: var(--primary); color: var(--bg-color); font-weight: 700; } .comment-input-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 30px; position: sticky; top: 10px; z-index: 10; } textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 12px; color: var(--text-main); font-family: inherit; font-size: 0.95rem; resize: none; min-height: 50px; } .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; margin-top: 8px; float: right; font-size: 0.9rem; } .comment-item { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 10px; border-left: 3px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.02); transition: 0.3s; position: relative; } .comment-item[data-depth="1"] { margin-left: 30px; border-left-color: var(--secondary); background: rgba(128,128,128,0.01); } .comment-item[data-depth="2"] { margin-left: 60px; border-left-color: var(--accent); background: rgba(128,128,128,0.02); } .item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; } .item-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(128,128,128,0.1); } .author-name { font-weight: 700; color: var(--primary); font-size: 0.85rem; } .timestamp { font-size: 0.65rem; color: var(--text-dim); margin-left: auto; } .content { color: var(--text-main); font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; margin-bottom: 10px; } .footer-actions { display: flex; gap: 12px; font-size: 0.75rem; color: var(--text-dim); } .action-link { cursor: pointer; opacity: 0.8; } .mention { color: var(--primary); font-weight: 700; margin-right: 5px; } .btn-admin { color: #ff4d4d; font-weight: 700; text-decoration: underline; margin-left: 10px; cursor: pointer; }</style>
       <div class="header">
         <div class="header-info"><h1 style="color:var(--primary); font-size:1.4rem; margin-bottom:2px;">SKKU Coffee Chat</h1><p style="color:var(--text-dim); font-size:0.75rem;">학우들과 나누는 따뜻한 대화</p></div>
         <div class="header-actions">
@@ -159,8 +160,7 @@ class CommentsSection extends HTMLElement {
     if (!text || !this.currentUser) return;
     try {
       await addDoc(collection(db, "comments"), { content: text, authorName: this.currentUser.displayName || "익명", authorUid: this.currentUser.uid, authorPhoto: this.currentUser.photoURL || '', boardId: this.currentBoard, parentId: pid, createdAt: serverTimestamp(), likes: [] });
-      inputEl.value = '';
-      if (pid) this.shadowRoot.getElementById(`reply-box-${pid}`).innerHTML = '';
+      inputEl.value = ''; if (pid) this.shadowRoot.getElementById(`reply-box-${pid}`).innerHTML = '';
     } catch (e) { alert("등록 실패"); }
   }
   loadComments() {
@@ -170,8 +170,7 @@ class CommentsSection extends HTMLElement {
       this.allComments.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
       const roots = this.allComments.filter(c => !c.parentId).reverse();
       const listEl = this.shadowRoot.getElementById('comment-list');
-      listEl.innerHTML = '';
-      roots.forEach(root => this.renderRecursive(listEl, root, 0));
+      listEl.innerHTML = ''; roots.forEach(root => this.renderRecursive(listEl, root, 0));
     });
   }
   renderRecursive(container, comment, depth) {
@@ -180,10 +179,10 @@ class CommentsSection extends HTMLElement {
   }
   renderItem(container, data, depth) {
     const isMine = this.currentUser && data.authorUid === this.currentUser.uid;
+    const isAdmin = this.currentUser && this.currentUser.email === ADMIN_EMAIL;
     const id = data.id;
     const item = document.createElement('div');
-    item.className = 'comment-item';
-    item.dataset.depth = Math.min(depth, 2);
+    item.className = 'comment-item'; item.dataset.depth = Math.min(depth, 2);
     let contentHTML = this.escapeHTML(data.content);
     if (depth > 0) contentHTML = contentHTML.replace(/^(@[^\s]+)/, '<span class="mention">$1</span>');
     item.innerHTML = `
@@ -193,6 +192,7 @@ class CommentsSection extends HTMLElement {
         <div class="action-link" id="like-${id}" style="color:${this.currentUser && data.likes?.includes(this.currentUser.uid) ? '#ff4d4d' : 'inherit'}">❤️ ${data.likes?.length || 0}</div>
         <div class="action-link" id="rep-${id}">💬 답글</div>
         ${isMine ? `<div class="action-link" id="ed-${id}">수정</div><div class="action-link" style="color:#ff4d4d" id="del-${id}">삭제</div>` : ''}
+        ${isAdmin && !isMine ? `<div class="btn-admin" id="admin-del-all-${id}">관리자: 이 사용자의 모든 글 삭제</div>` : ''}
       </div>
       <div id="reply-box-${id}"></div>
     `;
@@ -203,7 +203,27 @@ class CommentsSection extends HTMLElement {
       this.shadowRoot.getElementById(`del-${id}`).onclick = async () => { if (confirm("삭제하실거에요..?")) await deleteDoc(doc(db, "comments", id)); };
       this.shadowRoot.getElementById(`ed-${id}`).onclick = () => this.startEdit(id, data.content);
     }
+    // 관리자 전용 일괄 삭제 버튼
+    if (isAdmin && !isMine) {
+      this.shadowRoot.getElementById(`admin-del-all-${id}`).onclick = () => this.adminDeleteUserPosts(data.authorUid, data.authorName);
+    }
   }
+
+  async adminDeleteUserPosts(uid, name) {
+    if (confirm(`관리자 권한: [${name}] 사용자가 작성한 모든 글을 삭제하시겠습니까? 이 작업은 취소할 수 없습니다.`)) {
+      try {
+        const q = query(collection(db, "comments"), where("authorUid", "==", uid));
+        const snaps = await getDocs(q);
+        if (!snaps.empty) {
+          const batch = writeBatch(db);
+          snaps.forEach(d => batch.delete(d.ref));
+          await batch.commit();
+          alert(`사용자 [${name}]의 모든 게시물이 삭제되었습니다.`);
+        }
+      } catch (e) { alert("삭제 실패"); }
+    }
+  }
+
   showReplyBox(targetId, targetName) {
     if (!this.currentUser) return window.dispatchEvent(new CustomEvent('show-login'));
     const box = this.shadowRoot.getElementById(`reply-box-${targetId}`);
@@ -213,9 +233,7 @@ class CommentsSection extends HTMLElement {
     this.shadowRoot.getElementById(`rsub-${targetId}`).onclick = () => this.postComment(this.shadowRoot.getElementById(`rin-${targetId}`), targetId);
   }
   async startEdit(id, old) {
-    const cEl = this.shadowRoot.getElementById(`content-${id}`);
-    const aEl = this.shadowRoot.getElementById(`act-${id}`);
-    const oC = cEl.innerHTML; const oA = aEl.innerHTML;
+    const cEl = this.shadowRoot.getElementById(`content-${id}`); const aEl = this.shadowRoot.getElementById(`act-${id}`); const oC = cEl.innerHTML; const oA = aEl.innerHTML;
     cEl.innerHTML = `<textarea id="in-${id}" style="min-height:50px; font-size:0.95rem;">${old}</textarea>`;
     aEl.innerHTML = `<div style="display:flex; justify-content:flex-end; gap:10px;"><button id="can-${id}" style="font-size:0.75rem; color:var(--text-dim); background:none; border:none; cursor:pointer;">취소</button><button id="sav-${id}" style="font-size:0.75rem; color:var(--primary); font-weight:700; background:none; border:none; cursor:pointer;">저장</button></div>`;
     this.shadowRoot.getElementById(`can-${id}`).onclick = () => { cEl.innerHTML = oC; aEl.innerHTML = oA; };
@@ -242,16 +260,7 @@ class LoginScreen extends HTMLElement {
     `;
     this.shadowRoot.getElementById('close-btn').onclick = () => { this.isVisible = false; this.render(); };
     this.shadowRoot.getElementById('toggle-link').onclick = () => this.setMode(this.mode === 'login' ? 'signup' : 'login');
-    this.shadowRoot.getElementById('google-btn').onclick = async () => { 
-      try { 
-        googleProvider.setCustomParameters({ prompt: 'select_account' }); 
-        const result = await signInWithPopup(auth, googleProvider); 
-        const details = getAdditionalUserInfo(result);
-        if (details.isNewUser) {
-          alert("반가워요! 닉네임과 프로필 사진을 변경하지 않으시면 구글 정보로 활동하게 됩니다. 나중에 프로필 설정에서 언제든지 예쁘게 꾸미실 수 있어요! ✨");
-        }
-      } catch(e) {} 
-    };
+    this.shadowRoot.getElementById('google-btn').onclick = async () => { try { googleProvider.setCustomParameters({ prompt: 'select_account' }); const result = await signInWithPopup(auth, googleProvider); const details = getAdditionalUserInfo(result); if (details.isNewUser) alert("반가워요! 닉네임과 프로필 사진을 변경하지 않으시면 구글 정보로 활동하게 됩니다. ✨"); } catch(e) {} };
     this.shadowRoot.getElementById('auth-form').onsubmit = async (e) => {
       e.preventDefault();
       const email = this.shadowRoot.getElementById('email').value;

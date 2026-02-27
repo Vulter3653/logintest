@@ -44,7 +44,6 @@ const toggleTheme = () => {
   const next = current === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', next);
   localStorage.setItem('theme', next);
-  // 테마 변경 이벤트를 모든 컴포넌트에게 알림 (전체 리렌더링 방지)
   window.dispatchEvent(new CustomEvent('theme-update', { detail: { theme: next } }));
 };
 initTheme();
@@ -54,10 +53,7 @@ const getAvatarUrl = (style, seed) => `https://api.dicebear.com/7.x/${style || '
 /* 프로필 설정 컴포넌트 */
 class ProfileSection extends HTMLElement {
   constructor() { super(); this.attachShadow({ mode: 'open' }); this.currentStyle = 'avataaars'; this.currentSeed = ''; }
-  connectedCallback() { 
-    this.render();
-    window.addEventListener('theme-update', () => this.render());
-  }
+  connectedCallback() { this.render(); window.addEventListener('theme-update', () => this.render()); }
   render() {
     const user = auth.currentUser;
     if (!user) return;
@@ -69,7 +65,7 @@ class ProfileSection extends HTMLElement {
       this.currentSeed = seedMatch ? seedMatch[1] : user.uid.substring(0, 5);
     }
     this.shadowRoot.innerHTML = `
-      <style>@import url('/style.css'); :host { display: block; width: 100%; padding: 40px 0; } .profile-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: clamp(20px, 5%, 40px); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); text-align: center; } .avatar-preview { width: 120px; height: 120px; border-radius: 50%; border: 4px solid var(--primary); background: #fff; margin-bottom: 20px; } .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } select, .seed-input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(128,128,128,0.2); background: var(--card-bg); color: var(--text-main); } .btn-save { width: 100%; padding: 16px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 12px; cursor: pointer; margin-top: 20px; }</style>
+      <style>@import url('/style.css'); :host { display: block; width: 100%; padding: 40px 0; } .profile-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: clamp(20px, 5%, 40px); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); text-align: center; } .avatar-preview { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--primary); background: #fff; margin-bottom: 20px; } .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } select, .seed-input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(128,128,128,0.2); background: var(--card-bg); color: var(--text-main); } .btn-save { width: 100%; padding: 16px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 12px; cursor: pointer; margin-top: 20px; }</style>
       <div class="profile-card">
         <h2>내 아바타 커스텀</h2>
         <div style="margin-bottom:30px;"><img class="avatar-preview" id="preview" src="${getAvatarUrl(this.currentStyle, this.currentSeed)}"><div class="controls-grid"><select id="style-select"><option value="avataaars" ${this.currentStyle === 'avataaars' ? 'selected' : ''}>사람</option><option value="bottts" ${this.currentStyle === 'bottts' ? 'selected' : ''}>로봇</option><option value="pixel-art" ${this.currentStyle === 'pixel-art' ? 'selected' : ''}>픽셀</option></select><input type="text" id="seed-input" class="seed-input" value="${this.currentSeed}"></div></div>
@@ -96,90 +92,80 @@ class ProfileSection extends HTMLElement {
 }
 customElements.define('profile-section', ProfileSection);
 
-/* 댓글 컴포넌트 (데이터 로딩과 렌더링 분리) */
+/* 댓글 컴포넌트 (디자인 개선) */
 class CommentsSection extends HTMLElement {
-  constructor() { 
-    super(); 
-    this.attachShadow({ mode: 'open' }); 
-    this.currentUser = null; 
-    this.currentBoard = BOARDS[0].id; 
-    this.unsubscribe = null;
-    this.isDataLoaded = false;
-  }
-
+  constructor() { super(); this.attachShadow({ mode: 'open' }); this.currentUser = null; this.currentBoard = BOARDS[0].id; this.unsubscribe = null; this.isDataLoaded = false; }
   connectedCallback() {
-    onAuthStateChanged(auth, (user) => { 
-      this.currentUser = user; 
-      this.render(); 
-      if (!this.isDataLoaded) this.loadComments(); 
-    });
-    
-    // 테마 변경 시 전체 render 대신 아이콘만 살짝 변경 (로딩 끊김 방지)
-    window.addEventListener('theme-update', (e) => {
-      const btn = this.shadowRoot.getElementById('theme-btn');
-      if (btn) btn.textContent = e.detail.theme === 'dark' ? '☀️' : '🌙';
-    });
+    onAuthStateChanged(auth, (user) => { this.currentUser = user; this.render(); if (!this.isDataLoaded) this.loadComments(); });
+    window.addEventListener('theme-update', (e) => { const btn = this.shadowRoot.getElementById('theme-btn'); if (btn) btn.textContent = e.detail.theme === 'dark' ? '☀️' : '🌙'; });
   }
-
   render() {
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
     const isVerified = this.currentUser && (this.currentUser.emailVerified || this.currentUser.providerData[0]?.providerId === 'google.com');
-
     this.shadowRoot.innerHTML = `
-      <style>@import url('/style.css'); :host { display: block; width: 100%; padding: 20px 0; } .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; } .board-tabs { display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; } .tab { padding: 10px 18px; border-radius: 20px; background: var(--card-bg); border: 1px solid rgba(128,128,128,0.1); color: var(--text-dim); cursor: pointer; white-space: nowrap; font-size: 0.9rem; transition: 0.3s; } .tab.active { background: var(--primary); color: var(--bg-color); font-weight: 700; } .comment-input-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 30px; position: sticky; top: 10px; z-index: 10; } textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 14px; color: var(--text-main); font-family: inherit; font-size: 1rem; resize: none; min-height: 60px; } .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-top: 10px; float: right; } .comment-item { background: var(--card-bg); border-radius: var(--radius-md); padding: 20px; margin-bottom: 12px; border-left: 4px solid var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.02); } .item-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; } .author-name { font-weight: 700; color: var(--primary); font-size: 0.9rem; }</style>
+      <style>
+        @import url('/style.css'); 
+        :host { display: block; width: 100%; padding: 20px 0; } 
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; } 
+        .board-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; } 
+        .tab { padding: 8px 16px; border-radius: 20px; background: var(--card-bg); border: 1px solid rgba(128,128,128,0.1); color: var(--text-dim); cursor: pointer; white-space: nowrap; font-size: 0.85rem; transition: 0.3s; } 
+        .tab.active { background: var(--primary); color: var(--bg-color); font-weight: 700; } 
+        .comment-input-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 30px; position: sticky; top: 10px; z-index: 10; } 
+        textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 12px; color: var(--text-main); font-family: inherit; font-size: 0.95rem; resize: none; min-height: 50px; } 
+        .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; margin-top: 8px; float: right; font-size: 0.9rem; } 
+        
+        /* 댓글 아이템 디자인 개선 */
+        .comment-item { background: var(--card-bg); border-radius: var(--radius-md); padding: 16px; margin-bottom: 10px; border-left: 3px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.02); } 
+        .comment-item.is-reply { margin-left: 30px; border-left-color: var(--secondary); background: rgba(128,128,128,0.01); } 
+        
+        .item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; } 
+        .item-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; background: #fff; border: 1px solid rgba(128,128,128,0.1); } 
+        .author-name { font-weight: 700; color: var(--primary); font-size: 0.85rem; } 
+        .timestamp { font-size: 0.65rem; color: var(--text-dim); margin-left: auto; }
+        
+        .content { color: var(--text-main); font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; margin-bottom: 10px; padding-left: 2px; } 
+        .footer-actions { display: flex; gap: 12px; font-size: 0.75rem; color: var(--text-dim); } 
+        .action-link { cursor: pointer; opacity: 0.8; } .action-link:hover { opacity: 1; color: var(--primary); }
+      </style>
       <div class="header">
-        <div><h1 style="color:var(--primary); font-size:1.5rem;">SKKU Coffee Chat</h1></div>
+        <h1 style="color:var(--primary); font-size:1.4rem;">SKKU Coffee Chat</h1>
         <div style="display:flex; align-items:center; gap:10px;">
-          <button style="background:none; border:none; cursor:pointer; font-size:1.2rem;" id="theme-btn">${currentTheme === 'dark' ? '☀️' : '🌙'}</button>
-          ${this.currentUser ? `<span id="profile-btn" style="color:var(--primary); cursor:pointer; font-weight:600; text-decoration:underline;">${this.currentUser.displayName || '닉네임'}</span>` : `<button id="main-login-btn" class="btn-post" style="margin-top:0;">로그인</button>`}
+          <button style="background:none; border:none; cursor:pointer; font-size:1.1rem;" id="theme-btn">${currentTheme === 'dark' ? '☀️' : '🌙'}</button>
+          ${this.currentUser ? `<span id="profile-btn" style="color:var(--primary); cursor:pointer; font-weight:600; text-decoration:underline; font-size:0.85rem;">${this.currentUser.displayName || '닉네임'}</span>` : `<button id="main-login-btn" class="btn-post" style="margin-top:0;">로그인</button>`}
         </div>
       </div>
       <div class="board-tabs">${BOARDS.map(b => `<div class="tab ${this.currentBoard === b.id ? 'active' : ''}" data-id="${b.id}">${b.icon} ${b.name}</div>`).join('')}</div>
-      ${this.currentUser ? (isVerified ? `<div class="comment-input-card"><textarea id="main-input" placeholder="이야기 남기기..."></textarea><button id="main-submit" class="btn-post">게시</button><div style="clear:both;"></div></div>` : `<div class="comment-input-card" style="text-align:center;">인증이 필요합니다.</div>`) : `<div style="text-align:center; padding:30px; border:2px dashed rgba(128,128,128,0.2); border-radius:16px; color:var(--text-dim); margin-bottom:40px;">로그인 후 참여하세요.</div>`}
+      ${this.currentUser ? (isVerified ? `<div class="comment-input-card"><textarea id="main-input" placeholder="이야기 남기기..."></textarea><button id="main-submit" class="btn-post">게시</button><div style="clear:both;"></div></div>` : `<div class="comment-input-card" style="text-align:center; font-size:0.85rem;">인증이 필요합니다.</div>`) : `<div style="text-align:center; padding:20px; border:2px dashed rgba(128,128,128,0.1); border-radius:16px; color:var(--text-dim); margin-bottom:30px; font-size:0.85rem;">로그인 후 참여하세요.</div>`}
       <div id="comment-list"></div>
     `;
     this.setupEventListeners();
   }
-
   setupEventListeners() {
     this.shadowRoot.getElementById('theme-btn').onclick = toggleTheme;
     if (this.shadowRoot.getElementById('profile-btn')) this.shadowRoot.getElementById('profile-btn').onclick = () => updateView('profile');
     if (this.shadowRoot.getElementById('main-login-btn')) this.shadowRoot.getElementById('main-login-btn').onclick = () => window.dispatchEvent(new CustomEvent('show-login'));
-    this.shadowRoot.querySelectorAll('.tab').forEach(tab => { 
-      tab.onclick = () => { 
-        this.currentBoard = tab.dataset.id; 
-        this.render(); 
-        this.loadComments(); 
-      }; 
-    });
-    const mainSubmit = this.shadowRoot.getElementById('main-submit');
-    if (mainSubmit) {
-      mainSubmit.onclick = async () => {
-        const input = this.shadowRoot.getElementById('main-input');
-        if (!input.value.trim()) return;
-        await addDoc(collection(db, "comments"), { content: input.value.trim(), authorName: this.currentUser.displayName || "익명", authorUid: this.currentUser.uid, authorPhoto: this.currentUser.photoURL || '', boardId: this.currentBoard, createdAt: serverTimestamp(), likes: [] });
-        input.value = '';
-      };
-    }
+    this.shadowRoot.querySelectorAll('.tab').forEach(tab => { tab.onclick = () => { this.currentBoard = tab.dataset.id; this.render(); this.loadComments(); }; });
+    const sub = this.shadowRoot.getElementById('main-submit');
+    if (sub) sub.onclick = async () => {
+      const input = this.shadowRoot.getElementById('main-input');
+      if (!input.value.trim()) return;
+      await addDoc(collection(db, "comments"), { content: input.value.trim(), authorName: this.currentUser.displayName || "익명", authorUid: this.currentUser.uid, authorPhoto: this.currentUser.photoURL || '', boardId: this.currentBoard, createdAt: serverTimestamp(), likes: [] });
+      input.value = '';
+    };
   }
-
   loadComments() {
     if (this.unsubscribe) this.unsubscribe();
     this.isDataLoaded = true;
-    const listEl = this.shadowRoot.getElementById('comment-list');
     const q = query(collection(db, "comments"), where("boardId", "==", this.currentBoard));
     this.unsubscribe = onSnapshot(q, (snapshot) => {
       const all = []; snapshot.forEach(d => all.push({ id: d.id, ...d.data() }));
       all.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
       const parents = all.filter(c => !c.parentId);
+      const listEl = this.shadowRoot.getElementById('comment-list');
       listEl.innerHTML = '';
-      parents.reverse().forEach(p => {
-        this.renderItem(listEl, p, false);
-        all.filter(c => c.parentId === p.id).forEach(r => this.renderItem(listEl, r, true));
-      });
+      parents.reverse().forEach(p => { this.renderItem(listEl, p, false); all.filter(c => c.parentId === p.id).forEach(r => this.renderItem(listEl, r, true)); });
     });
   }
-
   renderItem(container, data, isReply) {
     const isMine = this.currentUser && data.authorUid === this.currentUser.uid;
     const isLiked = this.currentUser && data.likes?.includes(this.currentUser.uid);
@@ -187,28 +173,25 @@ class CommentsSection extends HTMLElement {
     const item = document.createElement('div');
     item.className = `comment-item ${isReply ? 'is-reply' : ''}`;
     item.innerHTML = `
-      <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;"><img class="item-avatar" src="${data.authorPhoto || getAvatarUrl('avataaars', 'default')}"><div style="display:flex; flex-direction:column;"><span style="font-weight:700; color:var(--primary); font-size:0.9rem;">${data.authorName}${isMine ? ' (나)' : ''}</span><span style="font-size:0.65rem; color:var(--text-dim);">${data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString() : '방금 전'}</span></div></div>
-      <div style="color:var(--text-main); font-size:1rem; line-height:1.6; white-space:pre-wrap; margin-bottom:12px;">${data.content}</div>
-      <div style="display:flex; gap:15px; font-size:0.8rem; color:var(--text-dim);"><div class="action-link" id="like-${id}" style="cursor:pointer; color:${isLiked ? '#ff4d4d' : 'var(--text-dim)'}">❤️ ${data.likes?.length || 0}</div>${!isReply ? `<div class="action-link" id="rep-${id}" style="cursor:pointer;">💬 답글</div>` : ''}${isMine ? `<div class="action-link" id="ed-${id}" style="cursor:pointer;">수정</div><div class="action-link" style="color:#ff4d4d; cursor:pointer;" id="del-${id}">삭제</div>` : ''}</div><div id="reply-box-${id}"></div>
+      <div class="item-header"><img class="item-avatar" src="${data.authorPhoto || getAvatarUrl('avataaars', 'default')}"><span class="author-name">${data.authorName}${isMine ? ' (나)' : ''}</span><span class="timestamp">${data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString('ko-KR', {hour:'2-digit', minute:'2-digit'}) : '방금 전'}</span></div>
+      <div class="content" id="content-${id}">${data.content}</div>
+      <div class="footer-actions"><div class="action-link" id="like-${id}" style="color:${isLiked ? '#ff4d4d' : 'inherit'}">❤️ ${data.likes?.length || 0}</div>${!isReply ? `<div class="action-link" id="rep-${id}">💬 답글</div>` : ''}${isMine ? `<div class="action-link" id="ed-${id}">수정</div><div class="action-link" style="color:#ff4d4d" id="del-${id}">삭제</div>` : ''}</div><div id="reply-box-${id}"></div>
     `;
     container.appendChild(item);
     this.shadowRoot.getElementById(`like-${id}`).onclick = async () => { if (!this.currentUser) return window.dispatchEvent(new CustomEvent('show-login')); await updateDoc(doc(db, "comments", id), { likes: isLiked ? arrayRemove(this.currentUser.uid) : arrayUnion(this.currentUser.uid) }); };
     if (!isReply) this.shadowRoot.getElementById(`rep-${id}`).onclick = () => this.showReplyBox(id);
-    if (isMine) {
-      this.shadowRoot.getElementById(`del-${id}`).onclick = async () => { if (confirm("삭제?")) await deleteDoc(doc(db, "comments", id)); };
-      this.shadowRoot.getElementById(`ed-${id}`).onclick = () => this.startEdit(id, data.content);
-    }
+    if (isMine) { this.shadowRoot.getElementById(`del-${id}`).onclick = async () => { if (confirm("삭제?")) await deleteDoc(doc(db, "comments", id)); }; this.shadowRoot.getElementById(`ed-${id}`).onclick = () => this.startEdit(id, data.content); }
   }
   showReplyBox(pid) {
     const box = this.shadowRoot.getElementById(`reply-box-${pid}`);
     if (box.innerHTML !== '') { box.innerHTML = ''; return; }
-    box.innerHTML = `<div style="margin-top:10px;"><textarea id="rin-${pid}" placeholder="답글..." style="min-height:50px; width:100%; border-radius:10px; padding:10px;"></textarea><div style="display:flex; justify-content:flex-end; gap:8px; margin-top:5px;"><button id="rcan-${pid}" style="cursor:pointer;">취소</button><button class="btn-post" style="margin-top:0;" id="rsub-${pid}">등록</button></div></div>`;
+    box.innerHTML = `<div style="margin-top:8px;"><textarea id="rin-${pid}" placeholder="답글..." style="min-height:40px; font-size:0.9rem;"></textarea><div style="display:flex; justify-content:flex-end; gap:8px; margin-top:5px;"><button id="rcan-${pid}" style="font-size:0.75rem; cursor:pointer; background:none; border:none; color:var(--text-dim);">취소</button><button class="btn-post" style="padding:4px 12px; font-size:0.75rem; margin-top:0;" id="rsub-${pid}">등록</button></div></div>`;
     this.shadowRoot.getElementById(`rcan-${pid}`).onclick = () => box.innerHTML = '';
     this.shadowRoot.getElementById(`rsub-${pid}`).onclick = () => { this.postComment(this.shadowRoot.getElementById(`rin-${pid}`), pid); box.innerHTML = ''; };
   }
   async startEdit(id, old) {
     const cEl = this.shadowRoot.getElementById(`content-${id}`);
-    cEl.innerHTML = `<textarea id="in-${id}" style="width:100%; min-height:60px; border-radius:10px; padding:10px;">${old}</textarea><div style="display:flex; justify-content:flex-end; gap:10px; margin-top:5px;"><button id="can-${id}" style="cursor:pointer;">취소</button><button id="sav-${id}" style="color:var(--primary); font-weight:700; cursor:pointer;">저장</button></div>`;
+    cEl.innerHTML = `<textarea id="in-${id}" style="min-height:50px; font-size:0.9rem;">${old}</textarea><div style="display:flex; justify-content:flex-end; gap:8px; margin-top:5px;"><button id="can-${id}" style="font-size:0.75rem; color:var(--text-dim); background:none; border:none; cursor:pointer;">취소</button><button id="sav-${id}" style="font-size:0.75rem; color:var(--primary); font-weight:700; background:none; border:none; cursor:pointer;">저장</button></div>`;
     this.shadowRoot.getElementById(`can-${id}`).onclick = () => this.loadComments();
     this.shadowRoot.getElementById(`sav-${id}`).onclick = async () => { const val = this.shadowRoot.getElementById(`in-${id}`).value.trim(); if (val) await updateDoc(doc(db, "comments", id), { content: val }); };
   }
@@ -227,8 +210,8 @@ class LoginScreen extends HTMLElement {
   render() {
     if (!this.isVisible) { this.shadowRoot.innerHTML = ''; return; }
     this.shadowRoot.innerHTML = `
-      <style>@import url('/style.css'); .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); } .login-card { background: var(--card-bg); border-radius: 24px; padding: clamp(20px, 8vw, 40px); width: min(400px, 90%); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); position: relative; } h2 { text-align: center; margin-bottom: 24px; color: var(--primary); } input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); box-sizing: border-box; margin-bottom: 15px; } .btn-submit { width: 100%; padding: 14px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 8px; cursor: pointer; } .btn-close { position: absolute; top: 15px; right: 15px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-size: 1.5rem; } .btn-google { width: 100%; padding: 12px; background: #fff; color: #000; border: 1px solid #ddd; border-radius: 12px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; }</style>
-      <div class="overlay"><div class="login-card"><button class="btn-close" id="close-btn">&times;</button><h2>${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '회원가입' : '비밀번호 찾기'}</h2><form id="auth-form">${this.mode === 'signup' ? `<input type="text" id="nickname" placeholder="닉네임" required>` : ''}<input type="email" id="email" placeholder="이메일" required>${this.mode !== 'reset' ? `<input type="password" id="password" placeholder="비밀번호" required minlength="6">` : ''}<button type="submit" id="submit-btn" class="btn-submit">${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '가입하기' : '발송'}</button></form><button id="google-btn" class="btn-google"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"> Google 계정 사용</button><div style="text-align:center; margin-top:20px; font-size:0.85rem; color:var(--text-dim);"><a id="toggle-link" style="color:var(--primary); cursor:pointer;">${this.mode === 'login' ? '회원가입 하러가기' : '로그인 하러가기'}</a></div></div></div>
+      <style>@import url('/style.css'); .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); } .login-card { background: var(--card-bg); border-radius: 24px; padding: 30px; width: min(380px, 90%); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); position: relative; } h2 { text-align: center; margin-bottom: 20px; color: var(--primary); font-size: 1.4rem; } input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); box-sizing: border-box; margin-bottom: 12px; font-size: 0.9rem; } .btn-submit { width: 100%; padding: 12px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; } .btn-close { position: absolute; top: 12px; right: 12px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-size: 1.4rem; } .btn-google { width: 100%; padding: 10px; background: #fff; color: #000; border: 1px solid #ddd; border-radius: 10px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 15px; font-size: 0.85rem; }</style>
+      <div class="overlay"><div class="login-card"><button class="btn-close" id="close-btn">&times;</button><h2>${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '회원가입' : '비밀번호 찾기'}</h2><form id="auth-form">${this.mode === 'signup' ? `<input type="text" id="nickname" placeholder="닉네임" required>` : ''}<input type="email" id="email" placeholder="이메일" required>${this.mode !== 'reset' ? `<input type="password" id="password" placeholder="비밀번호" required minlength="6">` : ''}<button type="submit" id="submit-btn" class="btn-submit">${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '가입하기' : '발송'}</button></form><button id="google-btn" class="btn-google"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="16"> Google 계정 사용</button><div style="text-align:center; margin-top:15px; font-size:0.8rem; color:var(--text-dim);"><a id="toggle-link" style="color:var(--primary); cursor:pointer;">${this.mode === 'login' ? '회원가입 하러가기' : '로그인 하러가기'}</a></div></div></div>
     `;
     this.shadowRoot.getElementById('close-btn').onclick = () => { this.isVisible = false; this.render(); };
     this.shadowRoot.getElementById('toggle-link').onclick = () => this.setMode(this.mode === 'login' ? 'signup' : 'login');
@@ -246,10 +229,10 @@ class LoginScreen extends HTMLElement {
           const res = await createUserWithEmailAndPassword(auth, email, password);
           await updateProfile(res.user, { displayName: nickname });
           await sendEmailVerification(res.user);
-          alert("인증 메일 발송 완료");
+          alert("인증 메일 발송!");
           await signOut(auth);
         } else await sendPasswordResetEmail(auth, email);
-      } catch (error) { alert("인증 오류"); } finally { this.render(); }
+      } catch (error) { alert("오류"); } finally { this.render(); }
     };
   }
 }

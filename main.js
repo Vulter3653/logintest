@@ -65,9 +65,7 @@ class CommentsSection extends HTMLElement {
     onAuthStateChanged(auth, (user) => { this.currentUser = user; this.render(); this.loadComments(); });
   }
   render() {
-    // 이메일 인증 여부 확인 (구글 사용자는 기본 true로 간주되거나 이미 체크됨)
     const isVerified = this.currentUser && (this.currentUser.emailVerified || this.currentUser.providerData[0].providerId === 'google.com');
-
     this.shadowRoot.innerHTML = `
       <style>
         @import url('/style.css');
@@ -88,7 +86,6 @@ class CommentsSection extends HTMLElement {
         .content { color: var(--text-main); font-size: 1rem; line-height: 1.6; white-space: pre-wrap; margin-bottom: 12px; }
         .btn-action { background: none; border: none; padding: 4px 8px; cursor: pointer; border-radius: 4px; transition: 0.2s; color: var(--text-dim); }
         .btn-profile { color: var(--primary); cursor: pointer; text-decoration: underline; margin-right: 10px; }
-        .verify-badge { background: #ff4d4d; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 5px; }
       </style>
       <div class="header">
         <div><h1 style="color:var(--text-main); margin-bottom:4px; font-size:1.8rem;">SKKU Marketing Coffee Chat</h1><p style="color:var(--text-dim); font-size:0.85rem;">성균관대 마케팅 학우들을 위한 실시간 소통 공간</p></div>
@@ -104,31 +101,21 @@ class CommentsSection extends HTMLElement {
           </div>
         `}
       </div>
-
       ${this.currentUser ? (isVerified ? `
         <div class="comment-input-card"><textarea id="comment-input" placeholder="커피 한 잔 하며 나누고 싶은 이야기를 적어주세요..."></textarea><button id="submit-btn" class="btn-post">메시지 전송</button></div>
       ` : `
-        <div class="comment-input-card" style="text-align:center; border-color:#ff4d4d;">
-          <p style="color:#ff4d4d; margin-bottom:15px;">⚠️ 이메일 인증이 필요합니다. 메일함을 확인해 주세요!</p>
-          <button id="resend-verify-btn" class="btn-outline" style="border-color:#ff4d4d; color:#ff4d4d;">인증 메일 재발송</button>
-        </div>
+        <div class="comment-input-card" style="text-align:center; border-color:#ff4d4d;"><p style="color:#ff4d4d; margin-bottom:15px;">⚠️ 이메일 인증이 필요합니다.</p><button id="resend-verify-btn" class="btn-outline" style="border-color:#ff4d4d; color:#ff4d4d;">인증 메일 재발송</button></div>
       `) : `
         <div style="text-align:center; padding:30px; border:2px dashed rgba(255,255,255,0.1); border-radius:16px; color:var(--text-dim); margin-bottom:40px;">메시지를 작성하려면 로그인이 필요합니다.</div>
       `}
-
       <div id="comment-list" class="comment-list"><p style="text-align:center; color:var(--text-dim)">이야기를 불러오는 중...</p></div>
     `;
     this.setupEventListeners();
   }
-
   setupEventListeners() {
     if (this.shadowRoot.getElementById('logout-btn')) this.shadowRoot.getElementById('logout-btn').onclick = () => signOut(auth);
     if (this.shadowRoot.getElementById('profile-btn')) this.shadowRoot.getElementById('profile-btn').onclick = () => window.dispatchEvent(new CustomEvent('show-view', { detail: { view: 'profile' } }));
-    if (this.shadowRoot.getElementById('resend-verify-btn')) {
-      this.shadowRoot.getElementById('resend-verify-btn').onclick = async () => {
-        try { await sendEmailVerification(auth.currentUser); alert("인증 메일이 재발송되었습니다."); } catch(e) { alert("잠시 후 다시 시도해 주세요."); }
-      };
-    }
+    if (this.shadowRoot.getElementById('resend-verify-btn')) this.shadowRoot.getElementById('resend-verify-btn').onclick = async () => { try { await sendEmailVerification(auth.currentUser); alert("인증 메일 재발송 완료"); } catch(e) {} };
     const lBtn = this.shadowRoot.getElementById('main-login-btn');
     const sBtn = this.shadowRoot.getElementById('main-signup-btn');
     if (lBtn) lBtn.onclick = () => window.dispatchEvent(new CustomEvent('show-login', { detail: { mode: 'login' } }));
@@ -139,11 +126,10 @@ class CommentsSection extends HTMLElement {
         const input = this.shadowRoot.getElementById('comment-input');
         const text = input.value.trim();
         if (!text || !this.currentUser) return;
-        try { await addDoc(collection(db, "comments"), { content: text, authorEmail: this.currentUser.email, authorName: this.currentUser.displayName || "익명", authorUid: this.currentUser.uid, createdAt: serverTimestamp() }); input.value = ''; } catch (e) { alert("전송 권한이 없습니다."); }
+        try { await addDoc(collection(db, "comments"), { content: text, authorEmail: this.currentUser.email, authorName: this.currentUser.displayName || "익명", authorUid: this.currentUser.uid, createdAt: serverTimestamp() }); input.value = ''; } catch (e) {}
       };
     }
   }
-
   loadComments() {
     const listEl = this.shadowRoot.getElementById('comment-list');
     const q = query(collection(db, "comments"), orderBy("createdAt", "desc"));
@@ -186,7 +172,7 @@ class LoginScreen extends HTMLElement {
   constructor() { super(); this.attachShadow({ mode: 'open' }); this.mode = 'login'; this.isVisible = false; }
   connectedCallback() {
     window.addEventListener('show-login', (e) => { this.isVisible = true; if (e.detail?.mode) this.mode = e.detail.mode; this.render(); });
-    onAuthStateChanged(auth, (user) => { if (user && user.emailVerified) { this.isVisible = false; this.render(); } });
+    onAuthStateChanged(auth, (user) => { if (user && (user.emailVerified || user.providerData[0].providerId === 'google.com')) { this.isVisible = false; this.render(); } });
     this.render();
   }
   setMode(mode) { this.mode = mode; this.render(); }
@@ -227,7 +213,15 @@ class LoginScreen extends HTMLElement {
     `;
     this.shadowRoot.getElementById('close-btn').onclick = () => { this.isVisible = false; this.render(); };
     this.shadowRoot.getElementById('toggle-link').onclick = () => this.setMode(this.mode === 'login' ? 'signup' : 'login');
-    this.shadowRoot.getElementById('google-btn').onclick = async () => { try { await signInWithPopup(auth, googleProvider); } catch(e) {} };
+    
+    // 계정 선택 화면을 항상 띄우도록 수정
+    this.shadowRoot.getElementById('google-btn').onclick = async () => { 
+      try { 
+        googleProvider.setCustomParameters({ prompt: 'select_account' }); // 이 코드가 핵심입니다!
+        await signInWithPopup(auth, googleProvider); 
+      } catch(e) {} 
+    };
+
     this.shadowRoot.getElementById('auth-form').onsubmit = async (e) => {
       e.preventDefault();
       const sBtn = this.shadowRoot.getElementById('submit-btn');
@@ -238,15 +232,15 @@ class LoginScreen extends HTMLElement {
       try {
         if (this.mode === 'login') {
           const res = await signInWithEmailAndPassword(auth, email, password);
-          if (!res.user.emailVerified) { alert("이메일 인증이 필요합니다. 메일함을 확인해 주세요."); }
+          if (!res.user.emailVerified) alert("이메일 인증이 필요합니다.");
         } else if (this.mode === 'signup') {
           const res = await createUserWithEmailAndPassword(auth, email, password);
           await updateProfile(res.user, { displayName: nickname });
           await sendEmailVerification(res.user);
-          alert("인증 메일이 발송되었습니다! 메일 확인 후 다시 로그인해 주세요.");
-          await signOut(auth); // 인증 전까지는 로그아웃 상태 유지
+          alert("인증 메일 발송 완료! 확인 후 다시 로그인해 주세요.");
+          await signOut(auth);
         } else await sendPasswordResetEmail(auth, email);
-      } catch (error) { alert("오류: " + error.code); } finally { sBtn.disabled = false; sBtn.textContent = "확인"; this.render(); }
+      } catch (error) { alert("인증 오류가 발생했습니다."); } finally { sBtn.disabled = false; sBtn.textContent = "확인"; this.render(); }
     };
   }
 }

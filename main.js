@@ -22,19 +22,11 @@ import {
 
 /* 프로필 설정 컴포넌트 */
 class ProfileSection extends HTMLElement {
-  constructor() {
-    super();
-    this.attachShadow({ mode: 'open' });
-  }
-
-  connectedCallback() {
-    this.render();
-  }
-
+  constructor() { super(); this.attachShadow({ mode: 'open' }); }
+  connectedCallback() { this.render(); }
   render() {
     const user = auth.currentUser;
     if (!user) return;
-
     this.shadowRoot.innerHTML = `
       <style>
         @import url('/style.css');
@@ -49,52 +41,28 @@ class ProfileSection extends HTMLElement {
       </style>
       <div class="profile-card">
         <h2>프로필 설정</h2>
-        <div class="form-group">
-          <label>이메일 계정</label>
-          <input type="text" value="${user.email}" disabled style="opacity: 0.5;">
-        </div>
-        <div class="form-group">
-          <label>현재 닉네임</label>
-          <input type="text" id="new-nickname" value="${user.displayName || ''}" placeholder="사용할 닉네임을 입력하세요">
-        </div>
+        <div class="form-group"><label>이메일 계정</label><input type="text" value="${user.email}" disabled style="opacity: 0.5;"></div>
+        <div class="form-group"><label>현재 닉네임</label><input type="text" id="new-nickname" value="${user.displayName || ''}" placeholder="사용할 닉네임을 입력하세요"></div>
         <button id="save-profile" class="btn-save">닉네임 변경 저장</button>
         <button id="back-to-feed" class="btn-back">피드로 돌아가기</button>
       </div>
     `;
-
     this.shadowRoot.getElementById('save-profile').onclick = async () => {
       const newName = this.shadowRoot.getElementById('new-nickname').value.trim();
       if (!newName) return alert("닉네임을 입력해 주세요.");
-      try {
-        await updateProfile(auth.currentUser, { displayName: newName });
-        alert("닉네임이 변경되었습니다!");
-        window.dispatchEvent(new CustomEvent('show-view', { detail: { view: 'feed' } }));
-      } catch (e) { alert("저장 중 오류가 발생했습니다."); }
+      try { await updateProfile(auth.currentUser, { displayName: newName }); alert("닉네임이 변경되었습니다!"); window.dispatchEvent(new CustomEvent('show-view', { detail: { view: 'feed' } })); } catch (e) { alert("저장 중 오류가 발생했습니다."); }
     };
-
-    this.shadowRoot.getElementById('back-to-feed').onclick = () => {
-      window.dispatchEvent(new CustomEvent('show-view', { detail: { view: 'feed' } }));
-    };
+    this.shadowRoot.getElementById('back-to-feed').onclick = () => window.dispatchEvent(new CustomEvent('show-view', { detail: { view: 'feed' } }));
   }
 }
 customElements.define('profile-section', ProfileSection);
 
 /* 댓글 컴포넌트 */
 class CommentsSection extends HTMLElement {
-  constructor() {
-    super();
-    this.attachShadow({ mode: 'open' });
-    this.currentUser = null;
-  }
-
+  constructor() { super(); this.attachShadow({ mode: 'open' }); this.currentUser = null; }
   connectedCallback() {
-    onAuthStateChanged(auth, (user) => {
-      this.currentUser = user;
-      this.render();
-      this.loadComments();
-    });
+    onAuthStateChanged(auth, (user) => { this.currentUser = user; this.render(); this.loadComments(); });
   }
-
   render() {
     this.shadowRoot.innerHTML = `
       <style>
@@ -113,13 +81,10 @@ class CommentsSection extends HTMLElement {
         .comment-item { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; margin-bottom: 16px; border-left: 4px solid var(--primary); transition: 0.3s; position: relative; }
         .comment-item.mine { border-left-color: var(--accent); background: rgba(255,255,255,0.08); }
         .author { font-weight: 700; color: var(--primary); font-size: 0.9rem; margin-bottom: 8px; display: flex; justify-content: space-between; }
-        .comment-item.mine .author { color: var(--accent); }
         .content { color: var(--text-main); font-size: 1rem; line-height: 1.6; white-space: pre-wrap; margin-bottom: 12px; }
-        .actions { display: flex; gap: 12px; font-size: 0.8rem; justify-content: flex-end; }
         .btn-action { background: none; border: none; padding: 4px 8px; cursor: pointer; border-radius: 4px; transition: 0.2s; color: var(--text-dim); }
         .btn-edit { color: var(--primary); }
         .btn-delete { color: #ff4d4d; }
-        .timestamp { color: var(--text-dim); font-size: 0.75rem; font-weight: 400; }
         .btn-profile { color: var(--primary); cursor: pointer; text-decoration: underline; margin-right: 10px; }
       </style>
       <div class="header">
@@ -136,47 +101,28 @@ class CommentsSection extends HTMLElement {
           </div>
         `}
       </div>
-      ${this.currentUser ? `
-        <div class="comment-input-card"><textarea id="comment-input" placeholder="커피 한 잔 하며 나누고 싶은 이야기를 적어주세요..."></textarea><button id="submit-btn" class="btn-post">메시지 전송</button></div>
-      ` : `
-        <div style="text-align:center; padding:30px; border:2px dashed rgba(255,255,255,0.1); border-radius:16px; color:var(--text-dim); margin-bottom:40px;">메시지를 작성하려면 로그인이 필요합니다.</div>
-      `}
+      ${this.currentUser ? `<div class="comment-input-card"><textarea id="comment-input" placeholder="커피 한 잔 하며 나누고 싶은 이야기를 적어주세요..."></textarea><button id="submit-btn" class="btn-post">메시지 전송</button></div>` : `<div style="text-align:center; padding:30px; border:2px dashed rgba(255,255,255,0.1); border-radius:16px; color:var(--text-dim); margin-bottom:40px;">메시지를 작성하려면 로그인이 필요합니다.</div>`}
       <div id="comment-list" class="comment-list"><p style="text-align:center; color:var(--text-dim)">이야기를 불러오는 중...</p></div>
     `;
     this.setupEventListeners();
   }
-
   setupEventListeners() {
     if (this.shadowRoot.getElementById('logout-btn')) this.shadowRoot.getElementById('logout-btn').onclick = () => signOut(auth);
-    if (this.shadowRoot.getElementById('profile-btn')) this.shadowRoot.getElementById('profile-btn').onclick = () => {
-      window.dispatchEvent(new CustomEvent('show-view', { detail: { view: 'profile' } }));
-    };
-    
-    const loginBtn = this.shadowRoot.getElementById('main-login-btn');
-    const signupBtn = this.shadowRoot.getElementById('main-signup-btn');
-    if (loginBtn) loginBtn.onclick = () => window.dispatchEvent(new CustomEvent('show-login', { detail: { mode: 'login' } }));
-    if (signupBtn) signupBtn.onclick = () => window.dispatchEvent(new CustomEvent('show-login', { detail: { mode: 'signup' } }));
-
-    const submitBtn = this.shadowRoot.getElementById('submit-btn');
-    if (submitBtn) {
-      submitBtn.onclick = async () => {
+    if (this.shadowRoot.getElementById('profile-btn')) this.shadowRoot.getElementById('profile-btn').onclick = () => window.dispatchEvent(new CustomEvent('show-view', { detail: { view: 'profile' } }));
+    const lBtn = this.shadowRoot.getElementById('main-login-btn');
+    const sBtn = this.shadowRoot.getElementById('main-signup-btn');
+    if (lBtn) lBtn.onclick = () => window.dispatchEvent(new CustomEvent('show-login', { detail: { mode: 'login' } }));
+    if (sBtn) sBtn.onclick = () => window.dispatchEvent(new CustomEvent('show-login', { detail: { mode: 'signup' } }));
+    const subBtn = this.shadowRoot.getElementById('submit-btn');
+    if (subBtn) {
+      subBtn.onclick = async () => {
         const input = this.shadowRoot.getElementById('comment-input');
         const text = input.value.trim();
         if (!text || !this.currentUser) return;
-        try {
-          await addDoc(collection(db, "comments"), { 
-            content: text, 
-            authorEmail: this.currentUser.email,
-            authorName: this.currentUser.displayName || "익명",
-            authorUid: this.currentUser.uid, 
-            createdAt: serverTimestamp() 
-          });
-          input.value = '';
-        } catch (e) { alert("전송 중 오류가 발생했습니다."); }
+        try { await addDoc(collection(db, "comments"), { content: text, authorEmail: this.currentUser.email, authorName: this.currentUser.displayName || "익명", authorUid: this.currentUser.uid, createdAt: serverTimestamp() }); input.value = ''; } catch (e) { alert("전송 중 오류가 발생했습니다."); }
       };
     }
   }
-
   loadComments() {
     const listEl = this.shadowRoot.getElementById('comment-list');
     const q = query(collection(db, "comments"), orderBy("createdAt", "desc"));
@@ -189,42 +135,28 @@ class CommentsSection extends HTMLElement {
         const isMine = this.currentUser && data.authorUid === this.currentUser.uid;
         const item = document.createElement('div');
         item.className = `comment-item ${isMine ? 'mine' : ''}`;
-        const date = data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString() : '방금 전';
         item.innerHTML = `
-          <div class="author">
-            <span>${data.authorName || data.authorEmail}${isMine ? ' <span style="color:var(--accent); font-size:0.7rem;">(나)</span>' : ''}</span>
-            <span class="timestamp">${date}</span>
-          </div>
+          <div class="author"><span>${data.authorName || data.authorEmail}${isMine ? ' <span style="color:var(--accent); font-size:0.7rem;">(나)</span>' : ''}</span><span style="color:var(--text-dim); font-size:0.75rem;">${data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString() : '방금 전'}</span></div>
           <div class="content" id="content-${id}">${this.escapeHTML(data.content)}</div>
           ${isMine ? `<div class="actions" id="actions-${id}"><button class="btn-action btn-edit" id="btn-edit-${id}">수정</button><button class="btn-action btn-delete" id="btn-delete-${id}">삭제</button></div>` : ''}
         `;
         listEl.appendChild(item);
         if (isMine) {
-          this.shadowRoot.getElementById(`btn-delete-${id}`).onclick = () => this.deleteComment(id);
+          this.shadowRoot.getElementById(`btn-delete-${id}`).onclick = () => deleteDoc(doc(db, "comments", id));
           this.shadowRoot.getElementById(`btn-edit-${id}`).onclick = () => this.startEdit(id, data.content);
         }
       });
     });
   }
-
-  async deleteComment(id) {
-    if (confirm("정말로 삭제하시겠습니까?")) await deleteDoc(doc(db, "comments", id));
-  }
-
   async startEdit(id, oldContent) {
-    const contentEl = this.shadowRoot.getElementById(`content-${id}`);
-    const actionsEl = this.shadowRoot.getElementById(`actions-${id}`);
-    const originalContentHTML = contentEl.innerHTML;
-    const originalActionsHTML = actionsEl.innerHTML;
-    contentEl.innerHTML = `<textarea id="edit-input-${id}" style="min-height:60px; margin-top:10px; margin-bottom:0;">${oldContent}</textarea>`;
-    actionsEl.innerHTML = `<button class="btn-action" id="btn-cancel-${id}">취소</button><button class="btn-action btn-edit" id="btn-save-${id}" style="font-weight:700">저장</button>`;
-    this.shadowRoot.getElementById(`btn-cancel-${id}`).onclick = () => { contentEl.innerHTML = originalContentHTML; actionsEl.innerHTML = originalActionsHTML; this.loadComments(); };
-    this.shadowRoot.getElementById(`btn-save-${id}`).onclick = async () => {
-      const newContent = this.shadowRoot.getElementById(`edit-input-${id}`).value.trim();
-      if (newContent) await updateDoc(doc(db, "comments", id), { content: newContent });
-    };
+    const cEl = this.shadowRoot.getElementById(`content-${id}`);
+    const aEl = this.shadowRoot.getElementById(`actions-${id}`);
+    const oC = cEl.innerHTML; const oA = aEl.innerHTML;
+    cEl.innerHTML = `<textarea id="edit-input-${id}" style="min-height:60px; margin-top:10px; margin-bottom:0;">${oldContent}</textarea>`;
+    aEl.innerHTML = `<button class="btn-action" id="btn-cancel-${id}">취소</button><button class="btn-action btn-edit" id="btn-save-${id}" style="font-weight:700">저장</button>`;
+    this.shadowRoot.getElementById(`btn-cancel-${id}`).onclick = () => { cEl.innerHTML = oC; aEl.innerHTML = oA; this.loadComments(); };
+    this.shadowRoot.getElementById(`btn-save-${id}`).onclick = async () => { const newC = this.shadowRoot.getElementById(`edit-input-${id}`).value.trim(); if (newC) await updateDoc(doc(db, "comments", id), { content: newC }); };
   }
-
   escapeHTML(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
 }
 customElements.define('comments-section', CommentsSection);
@@ -251,6 +183,10 @@ class LoginScreen extends HTMLElement {
         input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: #fff; box-sizing: border-box; }
         .btn-submit { width: 100%; padding: 14px; background: var(--primary); color: #000; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; }
         .btn-close { position: absolute; top: 15px; right: 15px; color: #fff; cursor: pointer; background: none; border: none; font-size: 1.5rem; }
+        .divider { text-align: center; margin: 24px 0; color: var(--text-dim); font-size: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.1); line-height: 0.1em; }
+        .divider span { background: var(--card-bg); padding: 0 10px; }
+        .btn-google { width: 100%; padding: 12px; background: #fff; color: #000; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .btn-google:hover { background: #f1f1f1; transform: translateY(-1px); }
         .footer { text-align: center; margin-top: 24px; font-size: 0.85rem; color: var(--text-dim); }
         a { color: var(--primary); cursor: pointer; text-decoration: underline; }
       </style>
@@ -258,18 +194,27 @@ class LoginScreen extends HTMLElement {
         <div class="login-card">
           <button class="btn-close" id="close-btn">&times;</button>
           <h2>${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '회원가입' : '비밀번호 찾기'}</h2>
+          
           <form id="auth-form">
             ${this.mode === 'signup' ? `<div class="form-group"><label>닉네임</label><input type="text" id="nickname" placeholder="홍길동" required></div>` : ''}
             <div class="form-group"><label>이메일</label><input type="email" id="email" required></div>
             ${this.mode !== 'reset' ? `<div class="form-group"><label>비밀번호</label><input type="password" id="password" required minlength="6"></div>` : ''}
             <button type="submit" class="btn-submit">${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '가입하기' : '이메일 발송'}</button>
           </form>
+
+          <div class="divider"><span>또는</span></div>
+          <button id="google-btn" class="btn-google">
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18">
+            Google로 ${this.mode === 'signup' ? '가입하기' : '계속하기'}
+          </button>
+
           <div class="footer">${this.mode === 'login' ? '계정이 없으신가요?' : '이미 계정이 있으신가요?'} <a id="toggle-link">${this.mode === 'login' ? '회원가입' : '로그인'}</a></div>
         </div>
       </div>
     `;
     this.shadowRoot.getElementById('close-btn').onclick = () => { this.isVisible = false; this.render(); };
     this.shadowRoot.getElementById('toggle-link').onclick = () => this.setMode(this.mode === 'login' ? 'signup' : 'login');
+    this.shadowRoot.getElementById('google-btn').onclick = async () => { try { await signInWithPopup(auth, googleProvider); } catch(e) {} };
     this.shadowRoot.getElementById('auth-form').onsubmit = async (e) => {
       e.preventDefault();
       const email = this.shadowRoot.getElementById('email').value;
@@ -280,7 +225,7 @@ class LoginScreen extends HTMLElement {
         else if (this.mode === 'signup') {
           const res = await createUserWithEmailAndPassword(auth, email, password);
           await updateProfile(res.user, { displayName: nickname });
-          alert("가입을 환영합니다, " + nickname + "님!");
+          alert("가입 완료!");
         } else await sendPasswordResetEmail(auth, email);
       } catch (error) { alert("인증 오류가 발생했습니다."); }
     };
@@ -288,16 +233,6 @@ class LoginScreen extends HTMLElement {
 }
 customElements.define('login-screen', LoginScreen);
 
-// 메인 뷰 관리
-const updateView = (view) => {
-  const container = document.getElementById('main-container');
-  container.innerHTML = view === 'feed' ? '<comments-section></comments-section>' : '<profile-section></profile-section>';
-};
+const updateView = (view) => { const container = document.getElementById('main-container'); container.innerHTML = view === 'feed' ? '<comments-section></comments-section>' : '<profile-section></profile-section>'; };
 window.addEventListener('show-view', (e) => updateView(e.detail.view));
-
-document.body.innerHTML = `
-  <div id="main-container"><comments-section></comments-section></div>
-  <login-screen></login-screen>
-  <div style="position: fixed; top: -10%; left: -10%; width: 50%; height: 50%; background: var(--secondary); filter: blur(150px); opacity: 0.15; border-radius: 50%; pointer-events: none; z-index: -1;"></div>
-  <div style="position: fixed; bottom: -10%; right: -10%; width: 40%; height: 40%; background: var(--primary); filter: blur(150px); opacity: 0.1; border-radius: 50%; pointer-events: none; z-index: -1;"></div>
-`;
+document.body.innerHTML = `<div id="main-container"><comments-section></comments-section></div><login-screen></login-screen><div style="position: fixed; top: -10%; left: -10%; width: 50%; height: 50%; background: var(--secondary); filter: blur(150px); opacity: 0.15; border-radius: 50%; pointer-events: none; z-index: -1;"></div><div style="position: fixed; bottom: -10%; right: -10%; width: 40%; height: 40%; background: var(--primary); filter: blur(150px); opacity: 0.1; border-radius: 50%; pointer-events: none; z-index: -1;"></div>`;

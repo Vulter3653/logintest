@@ -93,8 +93,8 @@ class ProfileSection extends HTMLElement {
         try {
           const snaps = await getDocs(query(collection(db, "comments"), where("authorUid", "==", user.uid)));
           if (!snaps.empty) { const batch = writeBatch(db); snaps.forEach(d => batch.delete(d.ref)); await batch.commit(); }
-          await deleteUser(user); alert("탈퇴 처리되었습니다."); location.reload();
-        } catch (e) { alert("로그인이 만료되었습니다. 다시 로그인해 주세요."); }
+          await deleteUser(user); location.reload();
+        } catch (e) { alert("재인증 필요"); }
       }
     };
     this.shadowRoot.getElementById('back-to-feed').onclick = () => updateView('feed');
@@ -113,7 +113,7 @@ class CommentsSection extends HTMLElement {
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
     const isVerified = this.currentUser && (this.currentUser.emailVerified || this.currentUser.providerData[0]?.providerId === 'google.com');
     this.shadowRoot.innerHTML = `
-      <style>@import url('/style.css'); :host { display: block; width: 100%; padding: 20px 0; } .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; flex-wrap: wrap; } .header-info { flex: 1; min-width: 180px; } .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; } .user-chip { display: flex; align-items: center; gap: 8px; background: rgba(128,128,128,0.08); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(128,128,128,0.1); white-space: nowrap; flex-shrink: 0; } .nav-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; } .nickname { font-weight: 700; color: var(--primary); font-size: 0.85rem; cursor: pointer; text-decoration: underline; } .btn-logout-small { background: none; border: 1px solid var(--text-dim); color: var(--text-dim); padding: 3px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; transition: 0.2s; } .board-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; } .tab { padding: 8px 16px; border-radius: 20px; background: var(--card-bg); border: 1px solid rgba(128,128,128,0.1); color: var(--text-dim); cursor: pointer; white-space: nowrap; font-size: 0.85rem; transition: 0.3s; } .tab.active { background: var(--primary); color: var(--bg-color); font-weight: 700; } .comment-input-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 30px; position: sticky; top: 10px; z-index: 10; } textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 12px; color: var(--text-main); font-family: inherit; font-size: 0.95rem; resize: none; min-height: 50px; } .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; margin-top: 8px; float: right; font-size: 0.9rem; } .comment-item { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 10px; border-left: 3px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.02); transition: 0.3s; position: relative; } .comment-item[data-depth="1"] { margin-left: 30px; border-left-color: var(--secondary); background: rgba(128,128,128,0.01); } .comment-item[data-depth="2"] { margin-left: 60px; border-left-color: var(--accent); background: rgba(128,128,128,0.02); } .item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; } .item-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(128,128,128,0.1); } .author-name { font-weight: 700; color: var(--primary); font-size: 0.85rem; } .timestamp { font-size: 0.65rem; color: var(--text-dim); margin-left: auto; } .content { color: var(--text-main); font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; margin-bottom: 10px; } .footer-actions { display: flex; gap: 12px; font-size: 0.75rem; color: var(--text-dim); } .action-link { cursor: pointer; opacity: 0.8; } .mention { color: var(--primary); font-weight: 700; margin-right: 5px; } .btn-admin { color: #ff4d4d; font-weight: 700; text-decoration: underline; margin-left: 10px; cursor: pointer; }</style>
+      <style>@import url('/style.css'); :host { display: block; width: 100%; padding: 20px 0; } .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; flex-wrap: wrap; } .header-info { flex: 1; min-width: 180px; } .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; } .user-chip { display: flex; align-items: center; gap: 8px; background: rgba(128,128,128,0.08); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(128,128,128,0.1); white-space: nowrap; flex-shrink: 0; } .nav-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; } .nickname { font-weight: 700; color: var(--primary); font-size: 0.85rem; cursor: pointer; text-decoration: underline; } .btn-logout-small { background: none; border: 1px solid var(--text-dim); color: var(--text-dim); padding: 3px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; transition: 0.2s; } .board-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; } .tab { padding: 8px 16px; border-radius: 20px; background: var(--card-bg); border: 1px solid rgba(128,128,128,0.1); color: var(--text-dim); cursor: pointer; white-space: nowrap; font-size: 0.85rem; transition: 0.3s; } .tab.active { background: var(--primary); color: var(--bg-color); font-weight: 700; } .comment-input-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 30px; position: sticky; top: 10px; z-index: 10; } textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 12px; color: var(--text-main); font-family: inherit; font-size: 0.95rem; resize: none; min-height: 50px; } .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; margin-top: 8px; float: right; font-size: 0.9rem; } .comment-item { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 10px; border-left: 3px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.02); transition: 0.3s; position: relative; } .comment-item[data-depth="1"] { margin-left: 30px; border-left-color: var(--secondary); background: rgba(128,128,128,0.01); } .comment-item[data-depth="2"] { margin-left: 60px; border-left-color: var(--accent); background: rgba(128,128,128,0.02); } .item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; } .item-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(128,128,128,0.1); } .author-name { font-weight: 700; color: var(--primary); font-size: 0.85rem; } .timestamp { font-size: 0.65rem; color: var(--text-dim); margin-left: auto; } .content { color: var(--text-main); font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; margin-bottom: 10px; } .footer-actions { display: flex; gap: 12px; font-size: 0.75rem; color: var(--text-dim); } .action-link { cursor: pointer; opacity: 0.8; } .mention { color: var(--primary); font-weight: 700; margin-right: 5px; } .btn-admin { color: #ff4d4d; font-weight: 700; text-decoration: underline; margin-left: 10px; cursor: pointer; } .anon-check { display: flex; align-items: center; gap: 5px; font-size: 0.8rem; color: var(--text-dim); margin-top: 8px; cursor: pointer; float: left; }</style>
       <div class="header">
         <div class="header-info"><h1 style="color:var(--primary); font-size:1.4rem; margin-bottom:2px;">SKKU Coffee Chat</h1><p style="color:var(--text-dim); font-size:0.75rem;">학우들과 나누는 따뜻한 대화</p></div>
         <div class="header-actions">
@@ -122,7 +122,14 @@ class CommentsSection extends HTMLElement {
         </div>
       </div>
       <div class="board-tabs">${BOARDS.map(b => `<div class="tab ${this.currentBoard === b.id ? 'active' : ''}" data-id="${b.id}">${b.icon} ${b.name}</div>`).join('')}</div>
-      ${this.currentUser ? (isVerified ? `<div class="comment-input-card"><textarea id="main-input" placeholder="이야기 남기기..."></textarea><button id="main-submit" class="btn-post">게시</button><div style="clear:both;"></div></div>` : `<div class="comment-input-card" style="text-align:center; font-size:0.85rem; color:#ff4d4d;">⚠️ 이메일 인증 필요 <button id="resend-verify" style="background:none; border:none; text-decoration:underline; color:inherit; cursor:pointer;">재발송</button></div>`) : `<div style="text-align:center; padding:20px; border:2px dashed rgba(128,128,128,0.1); border-radius:16px; color:var(--text-dim); margin-bottom:30px; font-size:0.85rem;">로그인 후 참여하세요.</div>`}
+      ${this.currentUser ? (isVerified ? `
+        <div class="comment-input-card">
+          <textarea id="main-input" placeholder="이야기 남기기..."></textarea>
+          <label class="anon-check"><input type="checkbox" id="main-anon"> 익명으로 게시</label>
+          <button id="main-submit" class="btn-post">게시</button>
+          <div style="clear:both;"></div>
+        </div>
+      ` : `<div class="comment-input-card" style="text-align:center;">⚠️ 이메일 인증 필요 <button id="resend-verify" style="background:none; border:none; text-decoration:underline; color:inherit; cursor:pointer;">재발송</button></div>`) : `<div style="text-align:center; padding:20px; border:2px dashed rgba(128,128,128,0.1); border-radius:16px; color:var(--text-dim); margin-bottom:30px; font-size:0.85rem;">로그인 후 참여하세요.</div>`}
       <div id="comment-list"></div>
     `;
     this.setupEventListeners();
@@ -135,13 +142,19 @@ class CommentsSection extends HTMLElement {
     if (this.shadowRoot.getElementById('main-login-btn')) this.shadowRoot.getElementById('main-login-btn').onclick = () => window.dispatchEvent(new CustomEvent('show-login'));
     this.shadowRoot.querySelectorAll('.tab').forEach(tab => { tab.onclick = () => { this.currentBoard = tab.dataset.id; this.render(); this.loadComments(); }; });
     const sub = this.shadowRoot.getElementById('main-submit');
-    if (sub) sub.onclick = () => this.postComment(this.shadowRoot.getElementById('main-input'));
+    if (sub) sub.onclick = () => this.postComment(this.shadowRoot.getElementById('main-input'), null, this.shadowRoot.getElementById('main-anon').checked);
   }
-  async postComment(inputEl, pid = null) {
+  async postComment(inputEl, pid = null, isAnon = false) {
     const text = inputEl.value.trim();
     if (!text || !this.currentUser) return;
     try {
-      await addDoc(collection(db, "comments"), { content: text, authorName: this.currentUser.displayName || "익명", authorUid: this.currentUser.uid, authorPhoto: this.currentUser.photoURL || '', boardId: this.currentBoard, parentId: pid, createdAt: serverTimestamp(), likes: [] });
+      await addDoc(collection(db, "comments"), { 
+        content: text, 
+        authorName: isAnon ? "익명" : (this.currentUser.displayName || "익명"), 
+        authorUid: this.currentUser.uid, 
+        authorPhoto: isAnon ? getAvatarUrl('avataaars', 'anon') : (this.currentUser.photoURL || ''), 
+        boardId: this.currentBoard, parentId: pid, createdAt: serverTimestamp(), likes: [] 
+      });
       inputEl.value = ''; if (pid) this.shadowRoot.getElementById(`reply-box-${pid}`).innerHTML = '';
     } catch (e) { alert("등록 실패"); }
   }
@@ -155,10 +168,7 @@ class CommentsSection extends HTMLElement {
       listEl.innerHTML = ''; roots.forEach(root => this.renderRecursive(listEl, root, 0));
     });
   }
-  renderRecursive(container, comment, depth) {
-    this.renderItem(container, comment, depth);
-    this.allComments.filter(c => c.parentId === comment.id).forEach(child => this.renderRecursive(container, child, depth + 1));
-  }
+  renderRecursive(container, comment, depth) { this.renderItem(container, comment, depth); this.allComments.filter(c => c.parentId === comment.id).forEach(child => this.renderRecursive(container, child, depth + 1)); }
   renderItem(container, data, depth) {
     const isMine = this.currentUser && data.authorUid === this.currentUser.uid;
     const isAdmin = this.currentUser && this.currentUser.email === ADMIN_EMAIL;
@@ -174,7 +184,7 @@ class CommentsSection extends HTMLElement {
         <div class="action-link" id="like-${id}" style="color:${this.currentUser && data.likes?.includes(this.currentUser.uid) ? '#ff4d4d' : 'inherit'}">❤️ ${data.likes?.length || 0}</div>
         <div class="action-link" id="rep-${id}">💬 답글</div>
         ${isMine ? `<div class="action-link" id="ed-${id}">수정</div><div class="action-link" style="color:#ff4d4d" id="del-${id}">삭제</div>` : ''}
-        ${isAdmin && !isMine ? `<div class="btn-admin" id="admin-del-all-${id}">관리자: 모든 글 삭제</div>` : ''}
+        ${isAdmin && !isMine ? `<div class="btn-admin" id="admin-del-all-${id}">관리자: 삭제</div>` : ''}
       </div>
       <div id="reply-box-${id}"></div>
     `;
@@ -187,9 +197,9 @@ class CommentsSection extends HTMLElement {
     }
     if (isAdmin && !isMine) {
       this.shadowRoot.getElementById(`admin-del-all-${id}`).onclick = async () => {
-        if (confirm(`관리자: [${data.authorName}]님의 모든 글을 삭제할까요?`)) {
+        if (confirm(`관리자: 모든 글을 삭제할까요?`)) {
           const snaps = await getDocs(query(collection(db, "comments"), where("authorUid", "==", data.authorUid)));
-          if (!snaps.empty) { const batch = writeBatch(db); snaps.forEach(d => batch.delete(d.ref)); await batch.commit(); alert("삭제 완료"); }
+          if (!snaps.empty) { const batch = writeBatch(db); snaps.forEach(d => batch.delete(d.ref)); await batch.commit(); alert("완료"); }
         }
       };
     }
@@ -199,25 +209,17 @@ class CommentsSection extends HTMLElement {
     const isVerified = this.currentUser.emailVerified || this.currentUser.providerData[0]?.providerId === 'google.com';
     const box = this.shadowRoot.getElementById(`reply-box-${targetId}`);
     if (box.innerHTML !== '') { box.innerHTML = ''; return; }
-    if (!isVerified) { box.innerHTML = `<div style="margin-top:10px; font-size:0.8rem; color:#ff4d4d; border:1px dashed #ff4d4d; padding:10px; border-radius:8px;">⚠️ 이메일 인증 필요</div>`; return; }
-    box.innerHTML = `<div style="margin-top:8px;"><textarea id="rin-${targetId}" placeholder="${targetName}님에게 답글 작성..." style="min-height:40px; font-size:0.9rem;">@${targetName} </textarea><div style="display:flex; justify-content:flex-end; gap:8px; margin-top:5px;"><button id="rcan-${targetId}" style="font-size:0.75rem; cursor:pointer; background:none; border:none; color:var(--text-dim);">취소</button><button class="btn-post" style="padding:4px 12px; font-size:0.75rem; margin-top:0;" id="rsub-${targetId}">등록</button></div></div>`;
+    if (!isVerified) { box.innerHTML = `<div style="margin-top:10px; font-size:0.8rem; color:#ff4d4d;">⚠️ 이메일 인증 필요</div>`; return; }
+    box.innerHTML = `<div style="margin-top:8px;"><textarea id="rin-${targetId}" placeholder="답글 작성..." style="min-height:40px; font-size:0.9rem;">@${targetName} </textarea><div style="display:flex; justify-content:space-between; align-items:center; margin-top:5px;"><label class="anon-check" style="margin-top:0;"><input type="checkbox" id="anon-${targetId}"> 익명</label><div style="display:flex; gap:8px;"><button id="rcan-${targetId}" style="font-size:0.75rem; cursor:pointer; background:none; border:none; color:var(--text-dim);">취소</button><button class="btn-post" style="padding:4px 12px; font-size:0.75rem; margin-top:0;" id="rsub-${targetId}">등록</button></div></div></div>`;
     this.shadowRoot.getElementById(`rcan-${targetId}`).onclick = () => box.innerHTML = '';
-    this.shadowRoot.getElementById(`rsub-${targetId}`).onclick = () => this.postComment(this.shadowRoot.getElementById(`rin-${targetId}`), targetId);
+    this.shadowRoot.getElementById(`rsub-${targetId}`).onclick = () => this.postComment(this.shadowRoot.getElementById(`rin-${targetId}`), targetId, this.shadowRoot.getElementById(`anon-${targetId}`).checked);
   }
   async startEdit(id, old) {
     const cEl = this.shadowRoot.getElementById(`content-${id}`); const aEl = this.shadowRoot.getElementById(`act-${id}`); const oC = cEl.innerHTML; const oA = aEl.innerHTML;
     cEl.innerHTML = `<textarea id="in-${id}" style="min-height:50px; font-size:0.95rem;">${old}</textarea>`;
     aEl.innerHTML = `<div style="display:flex; justify-content:flex-end; gap:10px;"><button id="can-${id}" style="font-size:0.75rem; color:var(--text-dim); background:none; border:none; cursor:pointer;">취소</button><button id="sav-${id}" style="font-size:0.75rem; color:var(--primary); font-weight:700; background:none; border:none; cursor:pointer;">저장</button></div>`;
     this.shadowRoot.getElementById('can-'+id).onclick = () => { cEl.innerHTML = oC; aEl.innerHTML = oA; };
-    this.shadowRoot.getElementById('sav-'+id).onclick = async () => {
-      const val = this.shadowRoot.getElementById('in-'+id).value.trim();
-      if (!val) return;
-      try {
-        await updateDoc(doc(db, "comments", id), { content: val });
-        // 내용이 동일하더라도 강제 갱신하여 UI 복구
-        this.loadComments();
-      } catch (e) { alert("수정 실패"); }
-    };
+    this.shadowRoot.getElementById('sav-'+id).onclick = async () => { const val = this.shadowRoot.getElementById('in-'+id).value.trim(); if (val) { await updateDoc(doc(db, "comments", id), { content: val }); this.loadComments(); } };
   }
   escapeHTML(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
 }
@@ -226,39 +228,18 @@ customElements.define('comments-section', CommentsSection);
 /* 로그인 모달 */
 class LoginScreen extends HTMLElement {
   constructor() { super(); this.attachShadow({ mode: 'open' }); this.mode = 'login'; this.isVisible = false; }
-  connectedCallback() {
-    window.addEventListener('show-login', (e) => { this.isVisible = true; if (e.detail?.mode) this.mode = e.detail.mode; this.render(); });
-    onAuthStateChanged(auth, (user) => { if (user && (user.emailVerified || user.providerData[0]?.providerId === 'google.com')) { this.isVisible = false; this.render(); } });
-    this.render();
-  }
+  connectedCallback() { window.addEventListener('show-login', (e) => { this.isVisible = true; if (e.detail?.mode) this.mode = e.detail.mode; this.render(); }); onAuthStateChanged(auth, (user) => { if (user && (user.emailVerified || user.providerData[0]?.providerId === 'google.com')) { this.isVisible = false; this.render(); } }); this.render(); }
   setMode(mode) { this.mode = mode; this.render(); }
   render() {
     if (!this.isVisible) { this.shadowRoot.innerHTML = ''; return; }
     this.shadowRoot.innerHTML = `
-      <style>@import url('/style.css'); .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); } .login-card { background: var(--card-bg); border-radius: 24px; padding: 30px; width: min(380px, 90%); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); position: relative; } h2 { text-align: center; margin-bottom: 20px; color: var(--primary); font-size: 1.4rem; } input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); box-sizing: border-box; margin-bottom: 12px; font-size: 0.9rem; } .btn-submit { width: 100%; padding: 14px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; } .btn-close { position: absolute; top: 12px; right: 12px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-size: 1.4rem; } .btn-google { width: 100%; padding: 10px; background: #fff; color: #000; border: 1px solid #ddd; border-radius: 12px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; }</style>
+      <style>@import url('/style.css'); .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); } .login-card { background: var(--card-bg); border-radius: 24px; padding: 30px; width: min(380px, 90%); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); position: relative; } h2 { text-align: center; margin-bottom: 20px; color: var(--primary); font-size: 1.4rem; } input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); box-sizing: border-box; margin-bottom: 12px; font-size: 0.9rem; } .btn-submit { width: 100%; padding: 14px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; } .btn-close { position: absolute; top: 12px; right: 12px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-size: 1.4rem; } .btn-google { width: 100%; padding: 10px; background: #fff; color: #000; border: 1px solid #ddd; border-radius: 10px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; }</style>
       <div class="overlay"><div class="login-card"><button class="btn-close" id="close-btn">&times;</button><h2>${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '회원가입' : '비밀번호 찾기'}</h2><form id="auth-form">${this.mode === 'signup' ? `<input type="text" id="nickname" placeholder="닉네임" required>` : ''}<input type="email" id="email" placeholder="이메일" required>${this.mode !== 'reset' ? `<input type="password" id="password" placeholder="비밀번호" required minlength="6">` : ''}<button type="submit" id="submit-btn" class="btn-submit">${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '가입하기' : '발송'}</button></form><button id="google-btn" class="btn-google"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="16"> Google 계정 사용</button><div style="text-align:center; margin-top:15px; font-size:0.8rem; color:var(--text-dim);"><a id="toggle-link" style="color:var(--primary); cursor:pointer;">${this.mode === 'login' ? '회원가입 하러가기' : '로그인 하러가기'}</a></div></div></div>
     `;
     this.shadowRoot.getElementById('close-btn').onclick = () => { this.isVisible = false; this.render(); };
     this.shadowRoot.getElementById('toggle-link').onclick = () => this.setMode(this.mode === 'login' ? 'signup' : 'login');
-    this.shadowRoot.getElementById('google-btn').onclick = async () => { try { googleProvider.setCustomParameters({ prompt: 'select_account' }); const result = await signInWithPopup(auth, googleProvider); const details = getAdditionalUserInfo(result); if (details.isNewUser) alert("반가워요! 닉네임과 프로필 사진을 변경하지 않으시면 구글 정보로 활동하게 됩니다. ✨"); } catch(e) {} };
-    this.shadowRoot.getElementById('auth-form').onsubmit = async (e) => {
-      e.preventDefault();
-      const email = this.shadowRoot.getElementById('email').value;
-      const password = this.shadowRoot.getElementById('password')?.value || '';
-      const nickname = this.shadowRoot.getElementById('nickname')?.value;
-      try {
-        if (this.mode === 'login') {
-          const res = await signInWithEmailAndPassword(auth, email, password);
-          if (!res.user.emailVerified) alert("이메일 인증 필요");
-        } else if (this.mode === 'signup') {
-          const res = await createUserWithEmailAndPassword(auth, email, password);
-          await updateProfile(res.user, { displayName: nickname });
-          await sendEmailVerification(res.user);
-          alert("인증 메일 발송 완료");
-          await signOut(auth);
-        } else await sendPasswordResetEmail(auth, email);
-      } catch (error) { alert("인증 오류"); } finally { this.render(); }
-    };
+    this.shadowRoot.getElementById('google-btn').onclick = async () => { try { googleProvider.setCustomParameters({ prompt: 'select_account' }); const result = await signInWithPopup(auth, googleProvider); const details = getAdditionalUserInfo(result); if (details.isNewUser) alert("반가워요! ✨"); } catch(e) {} };
+    this.shadowRoot.getElementById('auth-form').onsubmit = async (e) => { e.preventDefault(); const email = this.shadowRoot.getElementById('email').value; const password = this.shadowRoot.getElementById('password')?.value || ''; const nickname = this.shadowRoot.getElementById('nickname')?.value; try { if (this.mode === 'login') { const res = await signInWithEmailAndPassword(auth, email, password); if (!res.user.emailVerified) alert("이메일 인증 필요"); } else if (this.mode === 'signup') { const res = await createUserWithEmailAndPassword(auth, email, password); await updateProfile(res.user, { displayName: nickname }); await sendEmailVerification(res.user); alert("인증 메일 발송!"); await signOut(auth); } else await sendPasswordResetEmail(auth, email); } catch (error) { alert("오류"); } finally { this.render(); } };
   }
 }
 customElements.define('login-screen', LoginScreen);

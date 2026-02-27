@@ -40,24 +40,22 @@ const toggleTheme = () => {
 };
 initTheme();
 
-// 사용할 기본 아바타 리스트 (DiceBear API 활용)
-const DEFAULT_AVATARS = [
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Caleb',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Luna',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Leo',
-  'https://api.dicebear.com/7.x/avataaars/svg?seed=Jade'
-];
+// DiceBear 아바타 URL 생성 함수
+const getAvatarUrl = (seed) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed || 'default'}`;
 
 /* 프로필 설정 컴포넌트 */
 class ProfileSection extends HTMLElement {
-  constructor() { super(); this.attachShadow({ mode: 'open' }); this.selectedAvatar = null; }
+  constructor() { super(); this.attachShadow({ mode: 'open' }); this.currentSeed = ''; }
   connectedCallback() { this.render(); }
   render() {
     const user = auth.currentUser;
     if (!user) return;
-    if (!this.selectedAvatar) this.selectedAvatar = user.photoURL || DEFAULT_AVATARS[0];
+    if (!this.currentSeed) {
+      // 기존 photoURL에서 seed 추출 시도 (없으면 기본값)
+      const url = user.photoURL || '';
+      const match = url.match(/seed=([^&]+)/);
+      this.currentSeed = match ? match[1] : user.uid.substring(0, 5);
+    }
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -66,75 +64,86 @@ class ProfileSection extends HTMLElement {
         .profile-card { background: var(--card-bg); border-radius: 24px; padding: 40px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); text-align: center; }
         h2 { color: var(--primary); margin-bottom: 30px; }
         
-        .current-avatar { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--primary); margin-bottom: 20px; object-fit: cover; }
+        .avatar-container { margin-bottom: 30px; }
+        .avatar-preview { width: 120px; height: 120px; border-radius: 50%; border: 4px solid var(--primary); background: #f0f0f0; margin-bottom: 15px; }
         
-        .avatar-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 30px; }
-        .avatar-option { width: 100%; aspect-ratio: 1; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: 0.2s; padding: 5px; }
-        .avatar-option:hover { background: rgba(128,128,128,0.1); }
-        .avatar-option.active { border-color: var(--primary); background: var(--primary-glow); }
+        .avatar-controls { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
+        .seed-input { padding: 10px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); width: 150px; text-align: center; }
+        .btn-random { background: var(--secondary); color: #000; border: none; border-radius: 8px; padding: 10px 15px; cursor: pointer; font-weight: 700; font-size: 0.8rem; }
 
         .form-group { text-align: left; margin-bottom: 24px; }
         label { display: block; margin-bottom: 8px; color: var(--text-dim); font-size: 0.9rem; }
         input[type="text"] { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); box-sizing: border-box; font-size: 1rem; }
         .btn-save { width: 100%; padding: 16px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 12px; cursor: pointer; margin-top: 10px; transition: 0.3s; }
         .btn-back { background: none; border: none; color: var(--text-dim); cursor: pointer; margin-top: 20px; text-decoration: underline; }
-        .status-msg { font-size: 0.8rem; color: var(--secondary); margin-top: 10px; display: none; }
       </style>
       <div class="profile-card">
-        <h2>프로필 설정</h2>
+        <h2>내 아바타 만들기</h2>
         
-        <p style="color:var(--text-dim); font-size:0.85rem; margin-bottom:15px;">아바타 선택</p>
-        <div class="avatar-grid" id="avatar-picker">
-          ${DEFAULT_AVATARS.map(url => `
-            <img src="${url}" class="avatar-option ${this.selectedAvatar === url ? 'active' : ''}" data-url="${url}">
-          `).join('')}
+        <div class="avatar-container">
+          <img class="avatar-preview" id="preview" src="${getAvatarUrl(this.currentSeed)}">
+          <div class="avatar-controls">
+            <input type="text" id="seed-input" class="seed-input" value="${this.currentSeed}" placeholder="고유 키워드">
+            <button id="random-btn" class="btn-random">🎲 랜덤</button>
+          </div>
+          <p style="color:var(--text-dim); font-size:0.75rem;">나만의 키워드를 입력하거나 랜덤 버튼을 눌러보세요!</p>
         </div>
 
-        <div class="form-group"><label>닉네임</label><input type="text" id="new-nickname" value="${user.displayName || ''}"></div>
-        <button id="save-profile" class="btn-save">변경 내용 저장</button>
-        <div id="status-msg" class="status-msg">과거 활동 업데이트 중...</div>
+        <div class="form-group">
+          <label>사용할 닉네임</label>
+          <input type="text" id="new-nickname" value="${user.displayName || ''}">
+        </div>
+        
+        <button id="save-profile" class="btn-save">모든 변경 내용 저장</button>
         <button id="back-to-feed" class="btn-back">피드로 돌아가기</button>
       </div>
     `;
 
-    // 아바타 선택 이벤트
-    this.shadowRoot.querySelectorAll('.avatar-option').forEach(img => {
-      img.onclick = () => {
-        this.selectedAvatar = img.dataset.url;
-        this.render();
-      };
-    });
+    const seedInput = this.shadowRoot.getElementById('seed-input');
+    const preview = this.shadowRoot.getElementById('preview');
+    const randomBtn = this.shadowRoot.getElementById('random-btn');
+
+    // 키워드 입력 시 즉시 아바타 변경
+    seedInput.oninput = (e) => {
+      this.currentSeed = e.target.value;
+      preview.src = getAvatarUrl(this.currentSeed);
+    };
+
+    // 랜덤 버튼 클릭 시 무작위 시드 생성
+    randomBtn.onclick = () => {
+      this.currentSeed = Math.random().toString(36).substring(7);
+      seedInput.value = this.currentSeed;
+      preview.src = getAvatarUrl(this.currentSeed);
+    };
 
     this.shadowRoot.getElementById('save-profile').onclick = async () => {
       const newName = this.shadowRoot.getElementById('new-nickname').value.trim();
       const btn = this.shadowRoot.getElementById('save-profile');
-      const statusMsg = this.shadowRoot.getElementById('status-msg');
-      
       btn.disabled = true; btn.textContent = "저장 중...";
-      statusMsg.style.display = 'block';
 
       try {
+        const photoURL = getAvatarUrl(this.currentSeed);
+        
         // 1. Auth 프로필 업데이트
-        await updateProfile(user, { displayName: newName, photoURL: this.selectedAvatar });
+        await updateProfile(user, { displayName: newName, photoURL: photoURL });
 
-        // 2. 작성한 모든 댓글 일괄 업데이트
+        // 2. 과거 댓글 일괄 업데이트
         const q = query(collection(db, "comments"), where("authorUid", "==", user.uid));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
           const batch = writeBatch(db);
           querySnapshot.forEach((docSnap) => {
-            batch.update(docSnap.ref, { authorName: newName, authorPhoto: this.selectedAvatar });
+            batch.update(docSnap.ref, { authorName: newName, authorPhoto: photoURL });
           });
           await batch.commit();
         }
 
-        alert("성공적으로 저장되었습니다!");
+        alert("아바타와 프로필이 저장되었습니다!");
         location.reload();
       } catch (e) {
-        alert("오류 발생: " + e.message);
+        alert("저장 실패");
       } finally {
-        btn.disabled = false; btn.textContent = "변경 내용 저장";
-        statusMsg.style.display = 'none';
+        btn.disabled = false; btn.textContent = "모든 변경 내용 저장";
       }
     };
     this.shadowRoot.getElementById('back-to-feed').onclick = () => updateView('feed');
@@ -158,7 +167,7 @@ class CommentsSection extends HTMLElement {
         :host { display: block; width: 100%; max-width: 800px; margin: 0 auto; padding: 40px 20px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
         .user-info { display: flex; align-items: center; gap: 10px; }
-        .nav-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); }
+        .nav-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); background: #eee; }
         .comment-input-card { background: var(--card-bg); border-radius: 16px; padding: 24px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 40px; position: sticky; top: 20px; z-index: 10; }
         textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 16px; color: var(--text-main); font-family: inherit; font-size: 1rem; resize: vertical; min-height: 80px; transition: 0.3s; margin-bottom: 12px; }
         textarea:focus { outline: none; border-color: var(--primary); box-shadow: var(--shadow-glow); }
@@ -175,14 +184,13 @@ class CommentsSection extends HTMLElement {
         .theme-toggle { background: var(--card-bg); border: 1px solid rgba(128,128,128,0.2); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
         .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 700; }
       </style>
-      
       <div class="header">
         <div><h1 style="color:var(--primary); margin-bottom:4px; font-size:1.8rem;">SKKU Coffee Chat</h1><p style="color:var(--text-dim); font-size:0.85rem;">실시간 소통 공간</p></div>
         <div style="display:flex; align-items:center; gap:12px;">
           <button class="theme-toggle" id="theme-btn">${currentTheme === 'dark' ? '☀️' : '🌙'}</button>
           ${this.currentUser ? `
             <div class="user-info">
-              <img class="nav-avatar" src="${this.currentUser.photoURL || DEFAULT_AVATARS[0]}">
+              <img class="nav-avatar" src="${this.currentUser.photoURL || getAvatarUrl('default')}">
               <span id="profile-btn" style="color:var(--primary); cursor:pointer; font-weight:600; text-decoration:underline;">${this.currentUser.displayName || '닉네임 설정'}</span>
               <button id="logout-btn" class="btn-outline" style="font-size:0.8rem;">로그아웃</button>
             </div>
@@ -192,21 +200,15 @@ class CommentsSection extends HTMLElement {
           `}
         </div>
       </div>
-
       ${this.currentUser ? (isVerified ? `
-        <div class="comment-input-card">
-          <textarea id="main-input" placeholder="새로운 이야기를 시작해보세요..."></textarea>
-          <button id="main-submit" class="btn-post">게시하기</button>
-        </div>
+        <div class="comment-input-card"><textarea id="main-input" placeholder="새로운 이야기를 시작해보세요..."></textarea><button id="main-submit" class="btn-post">게시하기</button></div>
       ` : `
         <div class="comment-input-card" style="text-align:center;"><p style="color:#ff4d4d; margin-bottom:10px;">⚠️ 이메일 인증이 필요합니다.</p><button id="resend-verify" class="btn-outline">인증 메일 재발송</button></div>
       `) : `<div style="text-align:center; padding:30px; border:2px dashed rgba(128,128,128,0.2); border-radius:16px; color:var(--text-dim); margin-bottom:40px;">로그인 후 참여하세요.</div>`}
-
       <div id="comment-list" class="comment-list"></div>
     `;
     this.setupEventListeners();
   }
-
   setupEventListeners() {
     this.shadowRoot.getElementById('theme-btn').onclick = toggleTheme;
     if (this.shadowRoot.getElementById('logout-btn')) this.shadowRoot.getElementById('logout-btn').onclick = () => signOut(auth);
@@ -219,24 +221,18 @@ class CommentsSection extends HTMLElement {
     const subBtn = this.shadowRoot.getElementById('main-submit');
     if (subBtn) subBtn.onclick = () => this.postComment(this.shadowRoot.getElementById('main-input'));
   }
-
   async postComment(inputEl, pid = null) {
     const text = inputEl.value.trim();
     if (!text || !this.currentUser) return;
     try {
       await addDoc(collection(db, "comments"), { 
-        content: text, 
-        authorName: this.currentUser.displayName || "익명", 
-        authorUid: this.currentUser.uid, 
-        authorPhoto: this.currentUser.photoURL || DEFAULT_AVATARS[0],
-        createdAt: serverTimestamp(), 
-        parentId: pid, 
-        likes: [] 
+        content: text, authorName: this.currentUser.displayName || "익명", authorUid: this.currentUser.uid, 
+        authorPhoto: this.currentUser.photoURL || getAvatarUrl('default'),
+        createdAt: serverTimestamp(), parentId: pid, likes: [] 
       });
       inputEl.value = '';
     } catch (e) { alert("오류 발생"); }
   }
-
   loadComments() {
     const listEl = this.shadowRoot.getElementById('comment-list');
     onSnapshot(query(collection(db, "comments"), orderBy("createdAt", "asc")), (snapshot) => {
@@ -249,24 +245,15 @@ class CommentsSection extends HTMLElement {
       });
     });
   }
-
   renderItem(container, data, isReply) {
     const isMine = this.currentUser && data.authorUid === this.currentUser.uid;
     const isLiked = this.currentUser && data.likes?.includes(this.currentUser.uid);
     const id = data.id;
     const item = document.createElement('div');
     item.className = `comment-item ${isReply ? 'is-reply' : ''}`;
-    const avatar = data.authorPhoto || DEFAULT_AVATARS[0];
-    const date = data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString() : '방금 전';
-
+    const avatar = data.authorPhoto || getAvatarUrl('default');
     item.innerHTML = `
-      <div class="item-header">
-        <img class="item-avatar" src="${avatar}">
-        <div style="display:flex; flex-direction:column;">
-          <span class="author-name">${data.authorName}${isMine ? ' (나)' : ''}</span>
-          <span class="timestamp">${date}</span>
-        </div>
-      </div>
+      <div class="item-header"><img class="item-avatar" src="${avatar}"><div style="display:flex; flex-direction:column;"><span class="author-name">${data.authorName}${isMine ? ' (나)' : ''}</span><span class="timestamp">${data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString() : '방금 전'}</span></div></div>
       <div class="content" id="content-${id}">${this.escapeHTML(data.content)}</div>
       <div class="footer-actions" id="actions-${id}">
         <div class="action-link" id="like-${id}" style="color:${isLiked ? '#ff4d4d' : 'var(--text-dim)'}">❤️ 좋아요 ${data.likes?.length || 0}</div>
@@ -276,17 +263,13 @@ class CommentsSection extends HTMLElement {
       <div id="reply-box-${id}"></div>
     `;
     container.appendChild(item);
-    this.shadowRoot.getElementById(`like-${id}`).onclick = async () => {
-      if (!this.currentUser) return window.dispatchEvent(new CustomEvent('show-login'));
-      await updateDoc(doc(db, "comments", id), { likes: isLiked ? arrayRemove(this.currentUser.uid) : arrayUnion(this.currentUser.uid) });
-    };
+    this.shadowRoot.getElementById(`like-${id}`).onclick = async () => { if (!this.currentUser) return window.dispatchEvent(new CustomEvent('show-login')); await updateDoc(doc(db, "comments", id), { likes: isLiked ? arrayRemove(this.currentUser.uid) : arrayUnion(this.currentUser.uid) }); };
     if (!isReply) this.shadowRoot.getElementById(`rep-${id}`).onclick = () => this.showReplyBox(id);
     if (isMine) {
       this.shadowRoot.getElementById(`del-${id}`).onclick = async () => { if (confirm("삭제?")) await deleteDoc(doc(db, "comments", id)); };
       this.shadowRoot.getElementById(`ed-${id}`).onclick = () => this.startEdit(id, data.content);
     }
   }
-
   showReplyBox(pid) {
     const box = this.shadowRoot.getElementById(`reply-box-${pid}`);
     if (box.innerHTML !== '') { box.innerHTML = ''; return; }
@@ -294,7 +277,6 @@ class CommentsSection extends HTMLElement {
     this.shadowRoot.getElementById(`rcan-${pid}`).onclick = () => box.innerHTML = '';
     this.shadowRoot.getElementById(`rsub-${pid}`).onclick = () => this.postComment(this.shadowRoot.getElementById(`rin-${pid}`), pid);
   }
-
   async startEdit(id, old) {
     const cEl = this.shadowRoot.getElementById(`content-${id}`);
     const aEl = this.shadowRoot.getElementById(`actions-${id}`);
@@ -330,28 +312,11 @@ class LoginScreen extends HTMLElement {
         .btn-close { position: absolute; top: 15px; right: 15px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-size: 1.5rem; }
         .btn-google { width: 100%; padding: 12px; background: #fff; color: #000; border: 1px solid #ddd; border-radius: 12px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; }
       </style>
-      <div class="overlay">
-        <div class="login-card" style="position:relative;">
-          <button class="btn-close" id="close-btn">&times;</button>
-          <h2>${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '회원가입' : '비밀번호 찾기'}</h2>
-          <form id="auth-form">
-            ${this.mode === 'signup' ? `<input type="text" id="nickname" placeholder="닉네임" required>` : ''}
-            <input type="email" id="email" placeholder="이메일" required>
-            ${this.mode !== 'reset' ? `<input type="password" id="password" placeholder="비밀번호" required minlength="6">` : ''}
-            <button type="submit" id="submit-btn" class="btn-submit">${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '가입하기' : '발송'}</button>
-          </form>
-          <button id="google-btn" class="btn-google"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"> Google 계정 사용</button>
-          <div style="text-align:center; margin-top:20px; font-size:0.85rem; color:var(--text-dim);">
-            <a id="toggle-link" style="color:var(--primary); cursor:pointer;">${this.mode === 'login' ? '회원가입 하러가기' : '로그인 하러가기'}</a>
-          </div>
-        </div>
-      </div>
+      <div class="overlay"><div class="login-card" style="position:relative;"><button class="btn-close" id="close-btn">&times;</button><h2>${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '회원가입' : '비밀번호 찾기'}</h2><form id="auth-form">${this.mode === 'signup' ? `<input type="text" id="nickname" placeholder="닉네임" required>` : ''}<input type="email" id="email" placeholder="이메일" required>${this.mode !== 'reset' ? `<input type="password" id="password" placeholder="비밀번호" required minlength="6">` : ''}<button type="submit" id="submit-btn" class="btn-submit">${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '가입하기' : '발송'}</button></form><button id="google-btn" class="btn-google"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"> Google 계정 사용</button><div style="text-align:center; margin-top:20px; font-size:0.85rem; color:var(--text-dim);"><a id="toggle-link" style="color:var(--primary); cursor:pointer;">${this.mode === 'login' ? '회원가입 하러가기' : '로그인 하러가기'}</a></div></div></div>
     `;
     this.shadowRoot.getElementById('close-btn').onclick = () => { this.isVisible = false; this.render(); };
     this.shadowRoot.getElementById('toggle-link').onclick = () => this.setMode(this.mode === 'login' ? 'signup' : 'login');
-    this.shadowRoot.getElementById('google-btn').onclick = async () => { 
-      try { googleProvider.setCustomParameters({ prompt: 'select_account' }); await signInWithPopup(auth, googleProvider); } catch(e) {} 
-    };
+    this.shadowRoot.getElementById('google-btn').onclick = async () => { try { googleProvider.setCustomParameters({ prompt: 'select_account' }); await signInWithPopup(auth, googleProvider); } catch(e) {} };
     this.shadowRoot.getElementById('auth-form').onsubmit = async (e) => {
       e.preventDefault();
       const email = this.shadowRoot.getElementById('email').value;
@@ -365,7 +330,7 @@ class LoginScreen extends HTMLElement {
           const res = await createUserWithEmailAndPassword(auth, email, password);
           await updateProfile(res.user, { displayName: nickname });
           await sendEmailVerification(res.user);
-          alert("인증 메일 발송 완료!");
+          alert("인증 메일 발송! 확인 후 로그인해 주세요.");
           await signOut(auth);
         } else await sendPasswordResetEmail(auth, email);
       } catch (error) { alert("오류 발생"); } finally { this.render(); }

@@ -2,11 +2,12 @@ import { app, analytics, auth, db, googleProvider } from './firebase-config.js';
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
-  onAuthStateChanged,
-  signOut,
-  sendPasswordResetEmail,
-  signInWithPopup,
-  updateProfile
+  onAuthStateChanged, 
+  signOut, 
+  sendPasswordResetEmail, 
+  signInWithPopup, 
+  updateProfile,
+  sendEmailVerification
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { 
   collection, 
@@ -14,10 +15,10 @@ import {
   query, 
   orderBy, 
   onSnapshot, 
-  serverTimestamp,
-  doc,
-  deleteDoc,
-  updateDoc
+  serverTimestamp, 
+  doc, 
+  deleteDoc, 
+  updateDoc 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /* 프로필 설정 컴포넌트 */
@@ -64,6 +65,9 @@ class CommentsSection extends HTMLElement {
     onAuthStateChanged(auth, (user) => { this.currentUser = user; this.render(); this.loadComments(); });
   }
   render() {
+    // 이메일 인증 여부 확인 (구글 사용자는 기본 true로 간주되거나 이미 체크됨)
+    const isVerified = this.currentUser && (this.currentUser.emailVerified || this.currentUser.providerData[0].providerId === 'google.com');
+
     this.shadowRoot.innerHTML = `
       <style>
         @import url('/style.css');
@@ -83,9 +87,8 @@ class CommentsSection extends HTMLElement {
         .author { font-weight: 700; color: var(--primary); font-size: 0.9rem; margin-bottom: 8px; display: flex; justify-content: space-between; }
         .content { color: var(--text-main); font-size: 1rem; line-height: 1.6; white-space: pre-wrap; margin-bottom: 12px; }
         .btn-action { background: none; border: none; padding: 4px 8px; cursor: pointer; border-radius: 4px; transition: 0.2s; color: var(--text-dim); }
-        .btn-edit { color: var(--primary); }
-        .btn-delete { color: #ff4d4d; }
         .btn-profile { color: var(--primary); cursor: pointer; text-decoration: underline; margin-right: 10px; }
+        .verify-badge { background: #ff4d4d; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; margin-left: 5px; }
       </style>
       <div class="header">
         <div><h1 style="color:var(--text-main); margin-bottom:4px; font-size:1.8rem;">SKKU Marketing Coffee Chat</h1><p style="color:var(--text-dim); font-size:0.85rem;">성균관대 마케팅 학우들을 위한 실시간 소통 공간</p></div>
@@ -101,14 +104,31 @@ class CommentsSection extends HTMLElement {
           </div>
         `}
       </div>
-      ${this.currentUser ? `<div class="comment-input-card"><textarea id="comment-input" placeholder="커피 한 잔 하며 나누고 싶은 이야기를 적어주세요..."></textarea><button id="submit-btn" class="btn-post">메시지 전송</button></div>` : `<div style="text-align:center; padding:30px; border:2px dashed rgba(255,255,255,0.1); border-radius:16px; color:var(--text-dim); margin-bottom:40px;">메시지를 작성하려면 로그인이 필요합니다.</div>`}
+
+      ${this.currentUser ? (isVerified ? `
+        <div class="comment-input-card"><textarea id="comment-input" placeholder="커피 한 잔 하며 나누고 싶은 이야기를 적어주세요..."></textarea><button id="submit-btn" class="btn-post">메시지 전송</button></div>
+      ` : `
+        <div class="comment-input-card" style="text-align:center; border-color:#ff4d4d;">
+          <p style="color:#ff4d4d; margin-bottom:15px;">⚠️ 이메일 인증이 필요합니다. 메일함을 확인해 주세요!</p>
+          <button id="resend-verify-btn" class="btn-outline" style="border-color:#ff4d4d; color:#ff4d4d;">인증 메일 재발송</button>
+        </div>
+      `) : `
+        <div style="text-align:center; padding:30px; border:2px dashed rgba(255,255,255,0.1); border-radius:16px; color:var(--text-dim); margin-bottom:40px;">메시지를 작성하려면 로그인이 필요합니다.</div>
+      `}
+
       <div id="comment-list" class="comment-list"><p style="text-align:center; color:var(--text-dim)">이야기를 불러오는 중...</p></div>
     `;
     this.setupEventListeners();
   }
+
   setupEventListeners() {
     if (this.shadowRoot.getElementById('logout-btn')) this.shadowRoot.getElementById('logout-btn').onclick = () => signOut(auth);
     if (this.shadowRoot.getElementById('profile-btn')) this.shadowRoot.getElementById('profile-btn').onclick = () => window.dispatchEvent(new CustomEvent('show-view', { detail: { view: 'profile' } }));
+    if (this.shadowRoot.getElementById('resend-verify-btn')) {
+      this.shadowRoot.getElementById('resend-verify-btn').onclick = async () => {
+        try { await sendEmailVerification(auth.currentUser); alert("인증 메일이 재발송되었습니다."); } catch(e) { alert("잠시 후 다시 시도해 주세요."); }
+      };
+    }
     const lBtn = this.shadowRoot.getElementById('main-login-btn');
     const sBtn = this.shadowRoot.getElementById('main-signup-btn');
     if (lBtn) lBtn.onclick = () => window.dispatchEvent(new CustomEvent('show-login', { detail: { mode: 'login' } }));
@@ -119,10 +139,11 @@ class CommentsSection extends HTMLElement {
         const input = this.shadowRoot.getElementById('comment-input');
         const text = input.value.trim();
         if (!text || !this.currentUser) return;
-        try { await addDoc(collection(db, "comments"), { content: text, authorEmail: this.currentUser.email, authorName: this.currentUser.displayName || "익명", authorUid: this.currentUser.uid, createdAt: serverTimestamp() }); input.value = ''; } catch (e) { alert("전송 중 오류가 발생했습니다."); }
+        try { await addDoc(collection(db, "comments"), { content: text, authorEmail: this.currentUser.email, authorName: this.currentUser.displayName || "익명", authorUid: this.currentUser.uid, createdAt: serverTimestamp() }); input.value = ''; } catch (e) { alert("전송 권한이 없습니다."); }
       };
     }
   }
+
   loadComments() {
     const listEl = this.shadowRoot.getElementById('comment-list');
     const q = query(collection(db, "comments"), orderBy("createdAt", "desc"));
@@ -131,19 +152,18 @@ class CommentsSection extends HTMLElement {
       if (snapshot.empty) { listEl.innerHTML = '<p style="text-align:center; color:var(--text-dim)">첫 메시지를 남겨보세요!</p>'; return; }
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        const id = docSnap.id;
         const isMine = this.currentUser && data.authorUid === this.currentUser.uid;
         const item = document.createElement('div');
         item.className = `comment-item ${isMine ? 'mine' : ''}`;
         item.innerHTML = `
           <div class="author"><span>${data.authorName || data.authorEmail}${isMine ? ' <span style="color:var(--accent); font-size:0.7rem;">(나)</span>' : ''}</span><span style="color:var(--text-dim); font-size:0.75rem;">${data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString() : '방금 전'}</span></div>
-          <div class="content" id="content-${id}">${this.escapeHTML(data.content)}</div>
-          ${isMine ? `<div class="actions" id="actions-${id}"><button class="btn-action btn-edit" id="btn-edit-${id}">수정</button><button class="btn-action btn-delete" id="btn-delete-${id}">삭제</button></div>` : ''}
+          <div class="content" id="content-${docSnap.id}">${this.escapeHTML(data.content)}</div>
+          ${isMine ? `<div class="actions" id="actions-${docSnap.id}"><button class="btn-action btn-edit" id="btn-edit-${docSnap.id}">수정</button><button class="btn-action btn-delete" id="btn-delete-${docSnap.id}">삭제</button></div>` : ''}
         `;
         listEl.appendChild(item);
         if (isMine) {
-          this.shadowRoot.getElementById(`btn-delete-${id}`).onclick = () => deleteDoc(doc(db, "comments", id));
-          this.shadowRoot.getElementById(`btn-edit-${id}`).onclick = () => this.startEdit(id, data.content);
+          this.shadowRoot.getElementById(`btn-delete-${docSnap.id}`).onclick = () => deleteDoc(doc(db, "comments", docSnap.id));
+          this.shadowRoot.getElementById(`btn-edit-${docSnap.id}`).onclick = () => this.startEdit(docSnap.id, data.content);
         }
       });
     });
@@ -166,7 +186,7 @@ class LoginScreen extends HTMLElement {
   constructor() { super(); this.attachShadow({ mode: 'open' }); this.mode = 'login'; this.isVisible = false; }
   connectedCallback() {
     window.addEventListener('show-login', (e) => { this.isVisible = true; if (e.detail?.mode) this.mode = e.detail.mode; this.render(); });
-    onAuthStateChanged(auth, (user) => { if (user) { this.isVisible = false; this.render(); } });
+    onAuthStateChanged(auth, (user) => { if (user && user.emailVerified) { this.isVisible = false; this.render(); } });
     this.render();
   }
   setMode(mode) { this.mode = mode; this.render(); }
@@ -183,10 +203,9 @@ class LoginScreen extends HTMLElement {
         input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: #fff; box-sizing: border-box; }
         .btn-submit { width: 100%; padding: 14px; background: var(--primary); color: #000; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; margin-top: 10px; }
         .btn-close { position: absolute; top: 15px; right: 15px; color: #fff; cursor: pointer; background: none; border: none; font-size: 1.5rem; }
-        .divider { text-align: center; margin: 24px 0; color: var(--text-dim); font-size: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.1); line-height: 0.1em; }
+        .divider { text-align: center; margin: 20px 0; color: var(--text-dim); font-size: 0.8rem; border-bottom: 1px solid rgba(255,255,255,0.1); line-height: 0.1em; }
         .divider span { background: var(--card-bg); padding: 0 10px; }
-        .btn-google { width: 100%; padding: 12px; background: #fff; color: #000; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; transition: 0.3s; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .btn-google:hover { background: #f1f1f1; transform: translateY(-1px); }
+        .btn-google { width: 100%; padding: 12px; background: #fff; color: #000; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; }
         .footer { text-align: center; margin-top: 24px; font-size: 0.85rem; color: var(--text-dim); }
         a { color: var(--primary); cursor: pointer; text-decoration: underline; }
       </style>
@@ -194,20 +213,14 @@ class LoginScreen extends HTMLElement {
         <div class="login-card">
           <button class="btn-close" id="close-btn">&times;</button>
           <h2>${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '회원가입' : '비밀번호 찾기'}</h2>
-          
           <form id="auth-form">
             ${this.mode === 'signup' ? `<div class="form-group"><label>닉네임</label><input type="text" id="nickname" placeholder="홍길동" required></div>` : ''}
             <div class="form-group"><label>이메일</label><input type="email" id="email" required></div>
             ${this.mode !== 'reset' ? `<div class="form-group"><label>비밀번호</label><input type="password" id="password" required minlength="6"></div>` : ''}
-            <button type="submit" class="btn-submit">${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '가입하기' : '이메일 발송'}</button>
+            <button type="submit" id="submit-btn" class="btn-submit">${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '가입하기' : '이메일 발송'}</button>
           </form>
-
           <div class="divider"><span>또는</span></div>
-          <button id="google-btn" class="btn-google">
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18">
-            Google로 ${this.mode === 'signup' ? '가입하기' : '계속하기'}
-          </button>
-
+          <button id="google-btn" class="btn-google"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"> Google로 ${this.mode === 'signup' ? '가입하기' : '계속하기'}</button>
           <div class="footer">${this.mode === 'login' ? '계정이 없으신가요?' : '이미 계정이 있으신가요?'} <a id="toggle-link">${this.mode === 'login' ? '회원가입' : '로그인'}</a></div>
         </div>
       </div>
@@ -217,17 +230,23 @@ class LoginScreen extends HTMLElement {
     this.shadowRoot.getElementById('google-btn').onclick = async () => { try { await signInWithPopup(auth, googleProvider); } catch(e) {} };
     this.shadowRoot.getElementById('auth-form').onsubmit = async (e) => {
       e.preventDefault();
+      const sBtn = this.shadowRoot.getElementById('submit-btn');
+      sBtn.disabled = true; sBtn.textContent = "처리 중...";
       const email = this.shadowRoot.getElementById('email').value;
       const password = this.shadowRoot.getElementById('password')?.value || '';
       const nickname = this.shadowRoot.getElementById('nickname')?.value;
       try {
-        if (this.mode === 'login') await signInWithEmailAndPassword(auth, email, password);
-        else if (this.mode === 'signup') {
+        if (this.mode === 'login') {
+          const res = await signInWithEmailAndPassword(auth, email, password);
+          if (!res.user.emailVerified) { alert("이메일 인증이 필요합니다. 메일함을 확인해 주세요."); }
+        } else if (this.mode === 'signup') {
           const res = await createUserWithEmailAndPassword(auth, email, password);
           await updateProfile(res.user, { displayName: nickname });
-          alert("가입 완료!");
+          await sendEmailVerification(res.user);
+          alert("인증 메일이 발송되었습니다! 메일 확인 후 다시 로그인해 주세요.");
+          await signOut(auth); // 인증 전까지는 로그아웃 상태 유지
         } else await sendPasswordResetEmail(auth, email);
-      } catch (error) { alert("인증 오류가 발생했습니다."); }
+      } catch (error) { alert("오류: " + error.code); } finally { sBtn.disabled = false; sBtn.textContent = "확인"; this.render(); }
     };
   }
 }

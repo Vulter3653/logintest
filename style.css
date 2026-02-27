@@ -1,21 +1,32 @@
 :root {
-  /* 성균관대 & Coffee Chat 테마 - OKLCH */
-  --bg-color: oklch(0.15 0.02 160); /* 딥 성균 그린 베이스 다크 모드 */
-  --card-bg: oklch(0.22 0.03 160); /* 약간 밝은 그린 톤 카드 */
-  --primary: oklch(0.85 0.15 85);  /* 성균 은행잎 노란색 (Ginkgo Yellow) */
-  --primary-glow: oklch(0.85 0.15 85 / 0.3);
-  --secondary: oklch(0.5 0.1 160); /* 성균 그린 (Evergreen) */
-  --text-main: oklch(0.95 0.02 85); /* 크리미 화이트 */
-  --text-dim: oklch(0.75 0.03 160);
-  --accent: oklch(0.7 0.12 40);    /* 따뜻한 커피 브라운 포인트 */
+  /* 라이트 모드 (Default) - SKKU White & Green */
+  --bg-color: oklch(0.98 0.01 160);
+  --card-bg: oklch(1 0 0);
+  --primary: oklch(0.45 0.1 160);    /* 성균 그린 (Evergreen) */
+  --primary-glow: oklch(0.45 0.1 160 / 0.15);
+  --secondary: oklch(0.85 0.15 85);  /* 성균 은행잎 노란색 (Ginkgo Yellow) */
+  --text-main: oklch(0.2 0.05 160);  /* 깊은 그린 텍스트 */
+  --text-dim: oklch(0.45 0.05 160);
+  --accent: oklch(0.4 0.1 40);       /* 진한 커피 브라운 */
 
-  /* Spacing & Shadows */
   --radius-lg: 24px;
   --radius-md: 12px;
-  --shadow-deep: 0 20px 50px -10px oklch(0 0 0 / 0.5);
+  --shadow-deep: 0 15px 40px -10px oklch(0 0 0 / 0.08);
   --shadow-glow: 0 0 20px var(--primary-glow);
-  
   --font-main: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+[data-theme="dark"] {
+  /* 다크 모드 - SKKU Deep Green & Gold */
+  --bg-color: oklch(0.15 0.02 160);
+  --card-bg: oklch(0.22 0.03 160);
+  --primary: oklch(0.85 0.15 85);    /* 성균 은행잎 노란색 */
+  --primary-glow: oklch(0.85 0.15 85 / 0.3);
+  --secondary: oklch(0.5 0.1 160);   /* 성균 그린 */
+  --text-main: oklch(0.95 0.02 85);  /* 크리미 화이트 */
+  --text-dim: oklch(0.75 0.03 160);
+  --accent: oklch(0.7 0.12 40);      /* 따뜻한 커피 브라운 */
+  --shadow-deep: 0 20px 50px -10px oklch(0 0 0 / 0.5);
 }
 
 * {
@@ -30,10 +41,10 @@ body {
   color: var(--text-main);
   min-height: 100vh;
   position: relative;
-  transition: background-color 0.5s ease;
+  transition: background-color 0.4s ease, color 0.4s ease;
 }
 
-/* Texture overlay: 커피 향이 느껴지는 미세한 노이즈 텍스처 */
+/* Texture overlay */
 body::before {
   content: "";
   position: fixed;
@@ -44,13 +55,8 @@ body::before {
   z-index: 100;
 }
 
-h1, h2, h3 {
-  font-weight: 800;
-  letter-spacing: -0.03em;
-}
+h1, h2, h3 { font-weight: 800; letter-spacing: -0.03em; }
 
-/* 스크롤바 커스텀 */
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg-color); }
-::-webkit-scrollbar-thumb { background: var(--secondary); border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; opacity: 0.5; }

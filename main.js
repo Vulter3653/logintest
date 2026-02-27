@@ -7,7 +7,8 @@ import {
   sendPasswordResetEmail, 
   signInWithPopup, 
   updateProfile,
-  sendEmailVerification
+  sendEmailVerification,
+  getAdditionalUserInfo
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { 
   collection, 
@@ -112,7 +113,7 @@ class ProfileSection extends HTMLElement {
 }
 customElements.define('profile-section', ProfileSection);
 
-/* 댓글 컴포넌트 (헤더 및 로그아웃 버튼 가시성 강화) */
+/* 댓글 컴포넌트 */
 class CommentsSection extends HTMLElement {
   constructor() { super(); this.attachShadow({ mode: 'open' }); this.currentUser = null; this.currentBoard = BOARDS[0].id; this.unsubscribe = null; this.allComments = []; }
   connectedCallback() {
@@ -128,18 +129,10 @@ class CommentsSection extends HTMLElement {
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; flex-wrap: wrap; } 
         .header-info { flex: 1; min-width: 180px; }
         .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
-        
-        /* 사용자 정보 영역 고정 */
-        .user-chip { 
-          display: flex; align-items: center; gap: 8px; background: rgba(128,128,128,0.08); 
-          padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(128,128,128,0.1);
-          white-space: nowrap; flex-shrink: 0;
-        }
+        .user-chip { display: flex; align-items: center; gap: 8px; background: rgba(128,128,128,0.08); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(128,128,128,0.1); white-space: nowrap; flex-shrink: 0; }
         .nav-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
         .nickname { font-weight: 700; color: var(--primary); font-size: 0.85rem; cursor: pointer; text-decoration: underline; }
         .btn-logout-small { background: none; border: 1px solid var(--text-dim); color: var(--text-dim); padding: 3px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; transition: 0.2s; }
-        .btn-logout-small:hover { border-color: #ff4d4d; color: #ff4d4d; }
-
         .board-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; } 
         .tab { padding: 8px 16px; border-radius: 20px; background: var(--card-bg); border: 1px solid rgba(128,128,128,0.1); color: var(--text-dim); cursor: pointer; white-space: nowrap; font-size: 0.85rem; transition: 0.3s; } 
         .tab.active { background: var(--primary); color: var(--bg-color); font-weight: 700; } 
@@ -159,10 +152,7 @@ class CommentsSection extends HTMLElement {
         .mention { color: var(--primary); font-weight: 700; margin-right: 5px; }
       </style>
       <div class="header">
-        <div class="header-info">
-          <h1 style="color:var(--primary); font-size:1.4rem; margin-bottom:2px;">SKKU Coffee Chat</h1>
-          <p style="color:var(--text-dim); font-size:0.75rem;">학우들과 나누는 따뜻한 대화</p>
-        </div>
+        <div class="header-info"><h1 style="color:var(--primary); font-size:1.4rem; margin-bottom:2px;">SKKU Coffee Chat</h1><p style="color:var(--text-dim); font-size:0.75rem;">학우들과 나누는 따뜻한 대화</p></div>
         <div class="header-actions">
           <button style="background:none; border:none; cursor:pointer; font-size:1.1rem;" id="theme-btn">${currentTheme === 'dark' ? '☀️' : '🌙'}</button>
           ${this.currentUser ? `
@@ -278,7 +268,16 @@ class LoginScreen extends HTMLElement {
     `;
     this.shadowRoot.getElementById('close-btn').onclick = () => { this.isVisible = false; this.render(); };
     this.shadowRoot.getElementById('toggle-link').onclick = () => this.setMode(this.mode === 'login' ? 'signup' : 'login');
-    this.shadowRoot.getElementById('google-btn').onclick = async () => { try { googleProvider.setCustomParameters({ prompt: 'select_account' }); await signInWithPopup(auth, googleProvider); } catch(e) {} };
+    this.shadowRoot.getElementById('google-btn').onclick = async () => { 
+      try { 
+        googleProvider.setCustomParameters({ prompt: 'select_account' }); 
+        const result = await signInWithPopup(auth, googleProvider); 
+        const details = getAdditionalUserInfo(result);
+        if (details.isNewUser) {
+          alert("주의: 닉네임을 변경하지 않으면 구글 닉네임으로 댓글이 게시됩니다!");
+        }
+      } catch(e) {} 
+    };
     this.shadowRoot.getElementById('auth-form').onsubmit = async (e) => {
       e.preventDefault();
       const email = this.shadowRoot.getElementById('email').value;

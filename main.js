@@ -40,8 +40,10 @@ class CommentsSection extends HTMLElement {
       <style>
         @import url('/style.css');
         :host { display: block; width: 100%; max-width: 800px; margin: 0 auto; padding: 40px 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; gap: 20px; flex-wrap: wrap; }
         .user-info { display: flex; align-items: center; gap: 12px; color: var(--text-dim); font-size: 0.9rem; }
+        .auth-buttons { display: flex; gap: 10px; }
+        
         .comment-input-card { 
           background: var(--card-bg); border-radius: 16px; padding: 24px; 
           box-shadow: var(--shadow-deep); border: 1px solid oklch(1 0 0 / 0.1); 
@@ -53,9 +55,14 @@ class CommentsSection extends HTMLElement {
           resize: vertical; min-height: 80px; transition: 0.3s; margin-bottom: 12px;
         }
         textarea:focus { outline: none; border-color: var(--primary); box-shadow: var(--shadow-glow); }
+        
         .btn-post { background: var(--primary); color: #000; font-weight: 700; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; float: right; transition: 0.3s; }
+        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); padding: 10px 22px; border-radius: 8px; cursor: pointer; font-weight: 700; transition: 0.3s; }
+        .btn-outline:hover { background: var(--primary); color: #000; }
+        
         .login-prompt { text-align: center; padding: 30px; border: 2px dashed oklch(1 0 0 / 0.2); border-radius: 16px; color: var(--text-dim); margin-bottom: 40px; }
         .btn-login-redirect { color: var(--primary); font-weight: 700; text-decoration: underline; cursor: pointer; }
+        
         .comment-list { margin-top: 20px; clear: both; }
         .comment-item { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; margin-bottom: 16px; border-left: 4px solid var(--primary); transition: 0.3s; position: relative; }
         .comment-item.mine { border-left-color: var(--accent); background: rgba(255,255,255,0.08); }
@@ -74,7 +81,17 @@ class CommentsSection extends HTMLElement {
       </style>
       <div class="header">
         <div><h1 style="color:var(--text-main); margin-bottom:4px; font-size:1.8rem;">SKKU Marketing Coffee Chat</h1><p style="color:var(--text-dim); font-size:0.85rem;">성균관대 마케팅 학우들을 위한 실시간 소통 공간</p></div>
-        ${this.currentUser ? `<div class="user-info"><span>${this.currentUser.email || this.currentUser.displayName}</span><button id="logout-btn" class="btn-logout">로그아웃</button></div>` : `<button id="main-login-btn" class="btn-post" style="float:none;">로그인</button>`}
+        ${this.currentUser ? `
+          <div class="user-info">
+            <span>${this.currentUser.email || this.currentUser.displayName}</span>
+            <button id="logout-btn" class="btn-logout">로그아웃</button>
+          </div>
+        ` : `
+          <div class="auth-buttons">
+            <button id="main-signup-btn" class="btn-outline">회원가입</button>
+            <button id="main-login-btn" class="btn-post" style="float:none;">로그인</button>
+          </div>
+        `}
       </div>
       ${this.currentUser ? `<div class="comment-input-card"><textarea id="comment-input" placeholder="커피 한 잔 하며 나누고 싶은 이야기를 적어주세요..."></textarea><button id="submit-btn" class="btn-post">메시지 전송</button></div>` : `<div class="login-prompt">메시지를 작성하려면 <span id="prompt-login-btn" class="btn-login-redirect">로그인</span>이 필요합니다.</div>`}
       <div id="comment-list" class="comment-list"><p style="text-align:center; color:var(--text-dim)">이야기를 불러오는 중...</p></div>
@@ -85,11 +102,17 @@ class CommentsSection extends HTMLElement {
   setupEventListeners() {
     const logoutBtn = this.shadowRoot.getElementById('logout-btn');
     if (logoutBtn) logoutBtn.onclick = () => signOut(auth);
+    
     const loginBtn = this.shadowRoot.getElementById('main-login-btn');
+    const signupBtn = this.shadowRoot.getElementById('main-signup-btn');
     const promptLoginBtn = this.shadowRoot.getElementById('prompt-login-btn');
-    const handleLoginClick = () => window.dispatchEvent(new CustomEvent('show-login'));
-    if (loginBtn) loginBtn.onclick = handleLoginClick;
-    if (promptLoginBtn) promptLoginBtn.onclick = handleLoginClick;
+    
+    const openAuth = (mode = 'login') => window.dispatchEvent(new CustomEvent('show-login', { detail: { mode } }));
+    
+    if (loginBtn) loginBtn.onclick = () => openAuth('login');
+    if (signupBtn) signupBtn.onclick = () => openAuth('signup');
+    if (promptLoginBtn) promptLoginBtn.onclick = () => openAuth('login');
+
     const submitBtn = this.shadowRoot.getElementById('submit-btn');
     if (submitBtn) {
       submitBtn.onclick = async () => {
@@ -124,8 +147,10 @@ class CommentsSection extends HTMLElement {
         `;
         listEl.appendChild(item);
         if (isMine) {
-          this.shadowRoot.getElementById(`btn-delete-${id}`).onclick = () => this.deleteComment(id);
-          this.shadowRoot.getElementById(`btn-edit-${id}`).onclick = () => this.startEdit(id, data.content);
+          const dBtn = this.shadowRoot.getElementById(`btn-delete-${id}`);
+          const eBtn = this.shadowRoot.getElementById(`btn-edit-${id}`);
+          if (dBtn) dBtn.onclick = () => this.deleteComment(id);
+          if (eBtn) eBtn.onclick = () => this.startEdit(id, data.content);
         }
       });
     });
@@ -153,9 +178,7 @@ class CommentsSection extends HTMLElement {
     this.shadowRoot.getElementById(`btn-save-${id}`).onclick = async () => {
       const newContent = this.shadowRoot.getElementById(`edit-input-${id}`).value.trim();
       if (!newContent) return;
-      try {
-        await updateDoc(doc(db, "comments", id), { content: newContent });
-      } catch (e) { alert("수정 권한이 없습니다."); }
+      try { await updateDoc(doc(db, "comments", id), { content: newContent }); } catch (e) { alert("수정 권한이 없습니다."); }
     };
   }
 
@@ -167,7 +190,11 @@ customElements.define('comments-section', CommentsSection);
 class LoginScreen extends HTMLElement {
   constructor() { super(); this.attachShadow({ mode: 'open' }); this.mode = 'login'; this.isVisible = false; }
   connectedCallback() {
-    window.addEventListener('show-login', () => { this.isVisible = true; this.render(); });
+    window.addEventListener('show-login', (e) => {
+      this.isVisible = true;
+      if (e.detail && e.detail.mode) this.mode = e.detail.mode;
+      this.render();
+    });
     onAuthStateChanged(auth, (user) => { if (user) { this.isVisible = false; this.render(); } });
     this.render();
   }
@@ -236,3 +263,8 @@ class LoginScreen extends HTMLElement {
   }
 }
 customElements.define('login-screen', LoginScreen);
+
+// 초기 진입점 설정
+document.body.innerHTML = `<comments-section></comments-section><login-screen></login-screen><div style="position: fixed; top: -10%; left: -10%; width: 50%; height: 50%; background: var(--secondary); filter: blur(150px); opacity: 0.15; border-radius: 50%; pointer-events: none; z-index: -1;"></div><div style="position: fixed; bottom: -10%; right: -10%; width: 40%; height: 40%; background: var(--primary); filter: blur(150px); opacity: 0.1; border-radius: 50%; pointer-events: none; z-index: -1;"></div>`;
+document.body.style.display = 'block';
+document.body.style.overflow = 'auto';

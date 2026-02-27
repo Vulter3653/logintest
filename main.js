@@ -34,6 +34,25 @@ const BOARDS = [
   { id: 'club', name: '학회/동아리', icon: '🤝' }
 ];
 
+/* 아바타 스타일 전체 정의 */
+const AVATAR_STYLES = [
+  { id: 'avataaars', name: '사람 (기본)' },
+  { id: 'adventurer', name: '모험가' },
+  { id: 'open-peeps', name: '스케치 인물' },
+  { id: 'personas', name: '캐릭터' },
+  { id: 'lorelei', name: '귀여운 애니' },
+  { id: 'bottts', name: '로봇' },
+  { id: 'pixel-art', name: '픽셀 아트' },
+  { id: 'miniavs', name: '미니 인물' },
+  { id: 'big-smile', name: '빅 스마일' },
+  { id: 'fun-emoji', name: '이모지' },
+  { id: 'notionists', name: '노션 스타일' },
+  { id: 'croodles', name: '낙서형' },
+  { id: 'thumbs', name: '추상화' },
+  { id: 'identicon', name: '기하학 패턴' },
+  { id: 'rings', name: '원형 패턴' }
+];
+
 /* 테마 관리 */
 const initTheme = () => {
   const savedTheme = localStorage.getItem('theme') || 'light';
@@ -89,27 +108,23 @@ class ProfileSection extends HTMLElement {
         <img class="avatar-preview" id="preview" src="${getAvatarUrl(this.currentStyle, this.currentSeed)}">
         
         <div class="form-group">
-          <label>아바타 스타일</label>
+          <label>아바타 스타일 선택</label>
           <select id="style-select">
-            <option value="avataaars" ${this.currentStyle === 'avataaars' ? 'selected' : ''}>사람</option>
-            <option value="bottts" ${this.currentStyle === 'bottts' ? 'selected' : ''}>로봇</option>
-            <option value="pixel-art" ${this.currentStyle === 'pixel-art' ? 'selected' : ''}>픽셀</option>
-            <option value="lorelei" ${this.currentStyle === 'lorelei' ? 'selected' : ''}>귀여운</option>
-            <option value="personas" ${this.currentStyle === 'personas' ? 'selected' : ''}>캐릭터</option>
+            ${AVATAR_STYLES.map(s => `<option value="${s.id}" ${this.currentStyle === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
           </select>
         </div>
 
         <div class="form-group">
-          <label>아바타 키워드</label>
-          <input type="text" id="seed-input" value="${this.currentSeed}" placeholder="나만의 키워드 입력">
+          <label>아바타 고유 키워드 (Seed)</label>
+          <input type="text" id="seed-input" value="${this.currentSeed}" placeholder="나만의 단어를 입력해 보세요">
         </div>
 
         <div class="form-group">
-          <label>닉네임</label>
+          <label>커뮤니티 닉네임</label>
           <input type="text" id="new-nickname" value="${user.displayName || ''}">
         </div>
         
-        <button id="save-profile" class="btn-save">모든 내용 저장</button>
+        <button id="save-profile" class="btn-save">모든 설정 저장하기</button>
         <button id="back-to-feed" style="background:none; border:none; color:var(--text-dim); cursor:pointer; margin-top:20px; text-decoration:underline;">피드로 돌아가기</button>
       </div>
     `;
@@ -135,8 +150,8 @@ class ProfileSection extends HTMLElement {
           snaps.forEach(d => batch.update(d.ref, { authorName: newName, authorPhoto: photoURL }));
           await batch.commit();
         }
-        alert("정보가 변경되었습니다!"); location.reload();
-      } catch (e) { alert("저장 실패"); btn.disabled = false; }
+        alert("성공적으로 저장되었습니다!"); location.reload();
+      } catch (e) { alert("오류 발생"); btn.disabled = false; }
     };
     this.shadowRoot.getElementById('back-to-feed').onclick = () => updateView('feed');
   }
@@ -154,26 +169,7 @@ class CommentsSection extends HTMLElement {
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
     const isVerified = this.currentUser && (this.currentUser.emailVerified || this.currentUser.providerData[0]?.providerId === 'google.com');
     this.shadowRoot.innerHTML = `
-      <style>
-        @import url('/style.css'); 
-        :host { display: block; width: 100%; padding: 20px 0; } 
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; } 
-        .board-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; } 
-        .tab { padding: 8px 16px; border-radius: 20px; background: var(--card-bg); border: 1px solid rgba(128,128,128,0.1); color: var(--text-dim); cursor: pointer; white-space: nowrap; font-size: 0.85rem; transition: 0.3s; } 
-        .tab.active { background: var(--primary); color: var(--bg-color); font-weight: 700; } 
-        .comment-input-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 30px; position: sticky; top: 10px; z-index: 10; } 
-        textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 12px; color: var(--text-main); font-family: inherit; font-size: 0.95rem; resize: none; min-height: 50px; } 
-        .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; margin-top: 8px; float: right; font-size: 0.9rem; } 
-        .comment-item { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 10px; border-left: 3px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.02); } 
-        .comment-item.is-reply { margin-left: 30px; border-left-color: var(--secondary); background: rgba(128,128,128,0.01); } 
-        .item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; } 
-        .item-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(128,128,128,0.1); } 
-        .author-name { font-weight: 700; color: var(--primary); font-size: 0.85rem; } 
-        .timestamp { font-size: 0.65rem; color: var(--text-dim); margin-left: auto; }
-        .content { color: var(--text-main); font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; margin-bottom: 10px; } 
-        .footer-actions { display: flex; gap: 12px; font-size: 0.75rem; color: var(--text-dim); } 
-        .action-link { cursor: pointer; opacity: 0.8; } .action-link:hover { opacity: 1; color: var(--primary); }
-      </style>
+      <style>@import url('/style.css'); :host { display: block; width: 100%; padding: 20px 0; } .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; } .board-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; } .tab { padding: 8px 16px; border-radius: 20px; background: var(--card-bg); border: 1px solid rgba(128,128,128,0.1); color: var(--text-dim); cursor: pointer; white-space: nowrap; font-size: 0.85rem; transition: 0.3s; } .tab.active { background: var(--primary); color: var(--bg-color); font-weight: 700; } .comment-input-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 30px; position: sticky; top: 10px; z-index: 10; } textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 12px; color: var(--text-main); font-family: inherit; font-size: 0.95rem; resize: none; min-height: 50px; } .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; margin-top: 8px; float: right; font-size: 0.9rem; } .comment-item { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 10px; border-left: 3px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.02); } .comment-item.is-reply { margin-left: 30px; border-left-color: var(--secondary); background: rgba(128,128,128,0.01); } .item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; } .item-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(128,128,128,0.1); } .author-name { font-weight: 700; color: var(--primary); font-size: 0.85rem; } .timestamp { font-size: 0.65rem; color: var(--text-dim); margin-left: auto; } .content { color: var(--text-main); font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; margin-bottom: 10px; } .footer-actions { display: flex; gap: 12px; font-size: 0.75rem; color: var(--text-dim); } .action-link { cursor: pointer; opacity: 0.8; } .action-link:hover { opacity: 1; color: var(--primary); }</style>
       <div class="header">
         <h1 style="color:var(--primary); font-size:1.4rem;">SKKU Coffee Chat</h1>
         <div style="display:flex; align-items:center; gap:10px;">
@@ -195,7 +191,6 @@ class CommentsSection extends HTMLElement {
     const sub = this.shadowRoot.getElementById('main-submit');
     if (sub) sub.onclick = () => this.postComment(this.shadowRoot.getElementById('main-input'));
   }
-
   async postComment(inputEl, pid = null) {
     const text = inputEl.value.trim();
     if (!text || !this.currentUser) return;
@@ -209,7 +204,6 @@ class CommentsSection extends HTMLElement {
       if (pid) this.shadowRoot.getElementById(`reply-box-${pid}`).innerHTML = '';
     } catch (e) { alert("등록 실패"); }
   }
-
   loadComments() {
     if (this.unsubscribe) this.unsubscribe();
     onSnapshot(query(collection(db, "comments"), where("boardId", "==", this.currentBoard)), (snapshot) => {
@@ -224,7 +218,6 @@ class CommentsSection extends HTMLElement {
       });
     });
   }
-
   renderItem(container, data, isReply) {
     const isMine = this.currentUser && data.authorUid === this.currentUser.uid;
     const id = data.id;
@@ -252,7 +245,6 @@ class CommentsSection extends HTMLElement {
       this.shadowRoot.getElementById(`ed-${id}`).onclick = () => this.startEdit(id, data.content);
     }
   }
-
   showReplyBox(pid) {
     const box = this.shadowRoot.getElementById(`reply-box-${pid}`);
     if (box.innerHTML !== '') { box.innerHTML = ''; return; }
@@ -260,7 +252,6 @@ class CommentsSection extends HTMLElement {
     this.shadowRoot.getElementById(`rcan-${pid}`).onclick = () => box.innerHTML = '';
     this.shadowRoot.getElementById(`rsub-${pid}`).onclick = () => this.postComment(this.shadowRoot.getElementById(`rin-${pid}`), pid);
   }
-
   async startEdit(id, old) {
     const cEl = this.shadowRoot.getElementById(`content-${id}`);
     const aEl = this.shadowRoot.getElementById(`act-${id}`);
@@ -270,10 +261,7 @@ class CommentsSection extends HTMLElement {
     this.shadowRoot.getElementById(`can-${id}`).onclick = () => { cEl.innerHTML = oC; aEl.innerHTML = oA; };
     this.shadowRoot.getElementById(`sav-${id}`).onclick = async () => {
       const val = this.shadowRoot.getElementById(`in-${id}`).value.trim();
-      if (val) {
-        await updateDoc(doc(db, "comments", id), { content: val });
-        // onSnapshot에서 자동 갱신됨
-      }
+      if (val) await updateDoc(doc(db, "comments", id), { content: val });
     };
   }
 }
@@ -291,7 +279,7 @@ class LoginScreen extends HTMLElement {
   render() {
     if (!this.isVisible) { this.shadowRoot.innerHTML = ''; return; }
     this.shadowRoot.innerHTML = `
-      <style>@import url('/style.css'); .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); } .login-card { background: var(--card-bg); border-radius: 24px; padding: 30px; width: min(380px, 90%); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); position: relative; } h2 { text-align: center; margin-bottom: 20px; color: var(--primary); font-size: 1.4rem; } input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); box-sizing: border-box; margin-bottom: 12px; font-size: 0.9rem; } .btn-submit { width: 100%; padding: 12px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; } .btn-close { position: absolute; top: 12px; right: 12px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-size: 1.4rem; } .btn-google { width: 100%; padding: 10px; background: #fff; color: #000; border: 1px solid #ddd; border-radius: 10px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 15px; font-size: 0.85rem; }</style>
+      <style>@import url('/style.css'); .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); } .login-card { background: var(--card-bg); border-radius: 24px; padding: 30px; width: min(380px, 90%); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); position: relative; } h2 { text-align: center; margin-bottom: 20px; color: var(--primary); font-size: 1.4rem; } input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); box-sizing: border-box; margin-bottom: 12px; font-size: 0.9rem; } .btn-submit { width: 100%; padding: 14px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; } .btn-close { position: absolute; top: 12px; right: 12px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-size: 1.4rem; } .btn-google { width: 100%; padding: 10px; background: #fff; color: #000; border: 1px solid #ddd; border-radius: 10px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 15px; font-size: 0.85rem; }</style>
       <div class="overlay"><div class="login-card"><button class="btn-close" id="close-btn">&times;</button><h2>${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '회원가입' : '비밀번호 찾기'}</h2><form id="auth-form">${this.mode === 'signup' ? `<input type="text" id="nickname" placeholder="닉네임" required>` : ''}<input type="email" id="email" placeholder="이메일" required>${this.mode !== 'reset' ? `<input type="password" id="password" placeholder="비밀번호" required minlength="6">` : ''}<button type="submit" id="submit-btn" class="btn-submit">${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '가입하기' : '발송'}</button></form><button id="google-btn" class="btn-google"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="16"> Google 계정 사용</button><div style="text-align:center; margin-top:15px; font-size:0.8rem; color:var(--text-dim);"><a id="toggle-link" style="color:var(--primary); cursor:pointer;">${this.mode === 'login' ? '회원가입 하러가기' : '로그인 하러가기'}</a></div></div></div>
     `;
     this.shadowRoot.getElementById('close-btn').onclick = () => { this.isVisible = false; this.render(); };

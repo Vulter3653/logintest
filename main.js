@@ -1,4 +1,5 @@
-import { app, analytics } from './firebase-config.js';
+import { app, analytics, auth } from './firebase-config.js';
+import { signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 class LoginScreen extends HTMLElement {
   constructor() {
@@ -83,6 +84,11 @@ class LoginScreen extends HTMLElement {
           box-shadow: var(--shadow-glow);
         }
 
+        input:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
         .options {
           display: flex;
           justify-content: space-between;
@@ -132,14 +138,30 @@ class LoginScreen extends HTMLElement {
           margin-top: 8px;
         }
 
-        button:hover {
+        button:hover:not(:disabled) {
           transform: translateY(-2px);
           box-shadow: 0 8px 25px var(--primary-glow);
           filter: brightness(1.1);
         }
 
-        button:active {
+        button:active:not(:disabled) {
           transform: translateY(0);
+        }
+
+        button:disabled {
+          opacity: 0.7;
+          cursor: wait;
+        }
+
+        .error-message {
+          color: #ff4d4d;
+          background: rgba(255, 77, 77, 0.1);
+          padding: 10px;
+          border-radius: 8px;
+          font-size: 0.85rem;
+          margin-bottom: 20px;
+          display: none;
+          text-align: center;
         }
 
         .footer {
@@ -161,10 +183,12 @@ class LoginScreen extends HTMLElement {
         <h2>반갑습니다</h2>
         <p class="subtitle">계정에 로그인하여 계속하세요</p>
         
+        <div id="error-msg" class="error-message"></div>
+
         <form id="login-form">
           <div class="form-group">
-            <label for="username">사용자명 또는 이메일</label>
-            <input type="text" id="username" placeholder="name@example.com" required>
+            <label for="email">이메일 주소</label>
+            <input type="email" id="email" placeholder="name@example.com" required>
           </div>
           
           <div class="form-group">
@@ -179,7 +203,7 @@ class LoginScreen extends HTMLElement {
             <a href="#">비밀번호 찾기</a>
           </div>
 
-          <button type="submit">로그인</button>
+          <button type="submit" id="submit-btn">로그인</button>
         </form>
 
         <div class="footer">
@@ -188,11 +212,49 @@ class LoginScreen extends HTMLElement {
       </div>
     `;
 
-    this.shadowRoot.getElementById('login-form').addEventListener('submit', (e) => {
+    const form = this.shadowRoot.getElementById('login-form');
+    const errorEl = this.shadowRoot.getElementById('error-msg');
+    const submitBtn = this.shadowRoot.getElementById('submit-btn');
+
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const username = this.shadowRoot.getElementById('username').value;
-      console.log('Login attempt:', username);
-      alert(`${username}님, 환영합니다!`);
+      
+      const email = this.shadowRoot.getElementById('email').value;
+      const password = this.shadowRoot.getElementById('password').value;
+
+      // Reset state
+      errorEl.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = '로그인 중...';
+
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        console.log('로그인 성공:', user);
+        alert(`${user.email}님, 성공적으로 로그인되었습니다!`);
+      } catch (error) {
+        console.error('로그인 에러:', error.code, error.message);
+        errorEl.style.display = 'block';
+        
+        switch (error.code) {
+          case 'auth/user-not-found':
+          case 'auth/wrong-password':
+          case 'auth/invalid-credential':
+            errorEl.textContent = '이메일 또는 비밀번호가 일치하지 않습니다.';
+            break;
+          case 'auth/invalid-email':
+            errorEl.textContent = '유효하지 않은 이메일 형식입니다.';
+            break;
+          case 'auth/too-many-requests':
+            errorEl.textContent = '너무 많은 로그인 시도가 감지되었습니다. 잠시 후 다시 시도해 주세요.';
+            break;
+          default:
+            errorEl.textContent = '로그인 중 오류가 발생했습니다. 다시 시도해 주세요.';
+        }
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '로그인';
+      }
     });
   }
 }

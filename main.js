@@ -132,51 +132,77 @@ class CommentsSection extends HTMLElement {
       <style>
         @import url('/style.css');
         :host { display: block; width: 100%; padding: clamp(20px, 5vw, 40px) 0; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 20px; flex-wrap: wrap; }
+        
+        .header-left { flex: 1; min-width: 200px; }
+        .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+
+        .user-info { display: flex; align-items: center; gap: 8px; background: rgba(128,128,128,0.05); padding: 5px 12px; border-radius: 25px; border: 1px solid rgba(128,128,128,0.1); }
+        .nav-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); }
+        
         .board-tabs { display: flex; gap: 10px; margin-bottom: 30px; overflow-x: auto; padding-bottom: 10px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
         .tab { padding: 10px 18px; border-radius: 20px; background: var(--card-bg); border: 1px solid rgba(128,128,128,0.1); color: var(--text-dim); cursor: pointer; white-space: nowrap; font-size: 0.9rem; transition: 0.3s; }
         .tab.active { background: var(--primary); color: var(--bg-color); font-weight: 700; }
         
         .comment-input-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: clamp(15px, 4vw, 24px); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 40px; position: sticky; top: 10px; z-index: 10; }
-        textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 14px; color: var(--text-main); font-family: inherit; font-size: 1rem; resize: none; min-height: 60px; transition: 0.3s; }
-        .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; margin-top: 10px; float: right; transition: 0.3s; }
+        textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 14px; color: var(--text-main); font-family: inherit; font-size: 1rem; resize: none; min-height: 60px; }
+        .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-top: 10px; float: right; transition: 0.3s; }
         
         .comment-item { background: var(--card-bg); border-radius: var(--radius-md); padding: clamp(15px, 4vw, 20px); margin-bottom: 12px; border-left: 4px solid var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
-        .comment-item.is-reply { margin-left: clamp(20px, 8vw, 40px); border-left-color: var(--secondary); background: rgba(128,128,128,0.02); }
-        .item-avatar { width: clamp(30px, 10vw, 36px); height: clamp(30px, 10vw, 36px); border-radius: 50%; object-fit: cover; }
-        .author-name { font-weight: 700; color: var(--primary); font-size: 0.9rem; }
-        .footer-actions { display: flex; gap: clamp(10px, 3vw, 15px); font-size: 0.8rem; color: var(--text-dim); margin-top: 10px; flex-wrap: wrap; }
-        .action-link { cursor: pointer; }
-        
+        .btn-logout { background: none; border: 1px solid var(--text-dim); color: var(--text-dim); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 0.75rem; transition: 0.2s; }
+        .btn-logout:hover { border-color: #ff4d4d; color: #ff4d4d; }
+
         @media (max-width: 480px) {
-          .header { flex-direction: column; align-items: flex-start; }
-          .header div:last-child { align-self: flex-end; }
+          .header { flex-direction: column; align-items: stretch; }
+          .header-right { justify-content: space-between; width: 100%; }
         }
       </style>
+      
       <div class="header">
-        <div><h1 style="color:var(--primary); margin-bottom:4px;">SKKU Coffee Chat</h1><p style="color:var(--text-dim); font-size:0.8rem;">함께 성장하는 마케팅 커뮤니티</p></div>
-        <div style="display:flex; align-items:center; gap:10px;">
-          <button style="background:none; border:none; cursor:pointer; font-size:1.2rem;" id="theme-btn">${currentTheme === 'dark' ? '☀️' : '🌙'}</button>
-          ${this.currentUser ? `<span id="profile-btn" style="color:var(--primary); cursor:pointer; font-weight:600; text-decoration:underline; font-size:0.9rem;">${this.currentUser.displayName || '닉네임'}</span>` : `<button id="main-login-btn" class="btn-post" style="margin-top:0; padding:8px 16px;">로그인</button>`}
+        <div class="header-left">
+          <h1 style="color:var(--primary); margin-bottom:2px; font-size:1.6rem;">SKKU Coffee Chat</h1>
+          <p style="color:var(--text-dim); font-size:0.75rem;">함께 나누는 마케팅 이야기</p>
+        </div>
+        <div class="header-right">
+          <button style="background:var(--card-bg); border:1px solid rgba(128,128,128,0.2); width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:1rem;" id="theme-btn">${currentTheme === 'dark' ? '☀️' : '🌙'}</button>
+          ${this.currentUser ? `
+            <div class="user-info">
+              <img class="nav-avatar" src="${this.currentUser.photoURL || getAvatarUrl('avataaars', 'default')}">
+              <span id="profile-btn" style="color:var(--text-main); cursor:pointer; font-weight:600; font-size:0.85rem;">${this.currentUser.displayName || '닉네임'}</span>
+              <button id="logout-btn" class="btn-logout">로그아웃</button>
+            </div>
+          ` : `
+            <div style="display:flex; gap:8px;">
+              <button id="main-signup-btn" style="background:none; border:1px solid var(--primary); color:var(--primary); padding:8px 14px; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:700;">가입</button>
+              <button id="main-login-btn" class="btn-post" style="margin-top:0; padding:8px 14px; font-size:0.85rem;">로그인</button>
+            </div>
+          `}
         </div>
       </div>
+
       <div class="board-tabs">${BOARDS.map(b => `<div class="tab ${this.currentBoard === b.id ? 'active' : ''}" data-id="${b.id}">${b.icon} ${b.name}</div>`).join('')}</div>
+      
       ${this.currentUser ? (isVerified ? `
         <div class="comment-input-card">
           <textarea id="main-input" placeholder="${BOARDS.find(b=>b.id===this.currentBoard).name}에 남기기..."></textarea>
           <button id="main-submit" class="btn-post">게시</button>
           <div style="clear:both;"></div>
         </div>
-      ` : `<div class="comment-input-card" style="text-align:center;">⚠️ 이메일 인증이 필요합니다.</div>`) : `<div style="text-align:center; padding:30px; border:2px dashed rgba(128,128,128,0.2); border-radius:16px; color:var(--text-dim); margin-bottom:40px; font-size:0.9rem;">로그인 후 참여해 보세요!</div>`}
+      ` : `<div class="comment-input-card" style="text-align:center; font-size:0.9rem; color:#ff4d4d;">⚠️ 이메일 인증이 필요합니다. <button id="resend-verify" style="background:none; border:none; text-decoration:underline; color:#ff4d4d; cursor:pointer;">재발송</button></div>`) : `<div style="text-align:center; padding:25px; border:2px dashed rgba(128,128,128,0.2); border-radius:16px; color:var(--text-dim); margin-bottom:40px; font-size:0.85rem;">로그인 후 참여해 보세요!</div>`}
+      
       <div id="comment-list"></div>
     `;
     this.setupEventListeners();
   }
   setupEventListeners() {
     this.shadowRoot.getElementById('theme-btn').onclick = toggleTheme;
+    if (this.shadowRoot.getElementById('logout-btn')) this.shadowRoot.getElementById('logout-btn').onclick = () => signOut(auth);
     if (this.shadowRoot.getElementById('profile-btn')) this.shadowRoot.getElementById('profile-btn').onclick = () => updateView('profile');
-    if (this.shadowRoot.getElementById('main-login-btn')) this.shadowRoot.getElementById('main-login-btn').onclick = () => window.dispatchEvent(new CustomEvent('show-login'));
-    this.shadowRoot.querySelectorAll('.tab').forEach(tab => { tab.onclick = () => { this.currentBoard = tab.dataset.id; this.render(); this.loadComments(); }; });
+    if (this.shadowRoot.getElementById('resend-verify')) this.shadowRoot.getElementById('resend-verify').onclick = () => sendEmailVerification(auth.currentUser);
+    const lBtn = this.shadowRoot.getElementById('main-login-btn');
+    const sBtn = this.shadowRoot.getElementById('main-signup-btn');
+    if (lBtn) lBtn.onclick = () => window.dispatchEvent(new CustomEvent('show-login', { detail: { mode: 'login' } }));
+    if (sBtn) sBtn.onclick = () => window.dispatchEvent(new CustomEvent('show-login', { detail: { mode: 'signup' } }));
     const mainSubmit = this.shadowRoot.getElementById('main-submit');
     if (mainSubmit) {
       mainSubmit.onclick = async () => {
@@ -186,6 +212,7 @@ class CommentsSection extends HTMLElement {
         input.value = '';
       };
     }
+    this.shadowRoot.querySelectorAll('.tab').forEach(tab => { tab.onclick = () => { this.currentBoard = tab.dataset.id; this.render(); this.loadComments(); }; });
   }
   loadComments() {
     if (this.unsubscribe) this.unsubscribe();

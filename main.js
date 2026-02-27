@@ -1,3 +1,5 @@
+import { app, analytics } from './firebase-config.js';
+
 class LoginScreen extends HTMLElement {
   constructor() {
     super();

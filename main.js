@@ -98,16 +98,37 @@ class LoginScreen extends HTMLElement {
         h2 { font-size: 2rem; margin-bottom: 8px; color: var(--text-main); text-align: center; }
         p.subtitle { color: var(--text-dim); text-align: center; margin-bottom: 32px; font-size: 0.95rem; }
         .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--text-dim); font-weight: 500; }
+        label.input-label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--text-dim); font-weight: 500; }
         input {
           width: 100%; background: oklch(0 0 0 / 0.2); border: 2px solid transparent;
           border-radius: var(--radius-md); padding: 14px 16px; color: white;
           font-size: 1rem; font-family: inherit; transition: all 0.3s ease;
         }
         input:focus { outline: none; border-color: var(--primary); box-shadow: var(--shadow-glow); }
-        .options { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; font-size: 0.85rem; }
+        
+        /* 개선된 options 영역 스타일 */
+        .options { 
+          display: flex; 
+          justify-content: space-between; 
+          align-items: center; 
+          flex-wrap: wrap; /* 좁은 화면에서 줄바꿈 허용 */
+          gap: 12px; /* 요소 간 간격 유지 */
+          margin-bottom: 24px; 
+          font-size: 0.85rem; 
+        }
+        .remember-me { 
+          display: flex; 
+          align-items: center; 
+          gap: 8px; 
+          color: var(--text-dim); 
+          cursor: pointer;
+          white-space: nowrap; /* 텍스트 줄바꿈 방지 */
+        }
+        .remember-me input { width: auto; padding: 0; cursor: pointer; }
+
         a { color: var(--primary); text-decoration: none; font-weight: 500; cursor: pointer; }
         a:hover { text-decoration: underline; }
+        
         button#submit-btn {
           width: 100%; background: var(--primary); color: oklch(0.1 0 0); border: none;
           border-radius: var(--radius-md); padding: 16px; font-size: 1rem;
@@ -119,6 +140,12 @@ class LoginScreen extends HTMLElement {
         .error-message { color: #ff4d4d; background: rgba(255, 77, 77, 0.1); padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 20px; display: none; text-align: center; }
         .success-message { color: #4ade80; background: rgba(74, 222, 128, 0.1); padding: 10px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 20px; display: none; text-align: center; }
         .footer { margin-top: 32px; text-align: center; font-size: 0.9rem; color: var(--text-dim); }
+
+        /* 좁은 화면을 위한 추가 미디어 쿼리 */
+        @media (max-width: 360px) {
+          .options { justify-content: center; text-align: center; }
+          .login-card { padding: 32px 24px; }
+        }
       </style>
 
       <div class="login-card">
@@ -130,20 +157,22 @@ class LoginScreen extends HTMLElement {
 
         <form id="auth-form">
           <div class="form-group">
-            <label for="email">이메일 주소</label>
+            <label class="input-label" for="email">이메일 주소</label>
             <input type="email" id="email" placeholder="name@example.com" required>
           </div>
           
           ${this.mode !== 'reset' ? `
             <div class="form-group">
-              <label for="password">비밀번호</label>
+              <label class="input-label" for="password">비밀번호</label>
               <input type="password" id="password" placeholder="••••••••" required minlength="6">
             </div>
           ` : ''}
 
           ${this.mode === 'login' ? `
             <div class="options">
-              <label style="display: flex; align-items: center; gap: 8px; color: var(--text-dim);"><input type="checkbox"> 로그인 유지</label>
+              <label class="remember-me">
+                <input type="checkbox"> 로그인 유지
+              </label>
               <a id="forgot-link">비밀번호 찾기</a>
             </div>
           ` : ''}
@@ -197,7 +226,6 @@ class LoginScreen extends HTMLElement {
           await createUserWithEmailAndPassword(auth, email, password);
           alert('회원가입이 완료되었습니다!');
         } else if (this.mode === 'reset') {
-          // 비밀번호 재설정 이메일 발송 (공식 문서 가이드)
           await sendPasswordResetEmail(auth, email);
           successEl.style.display = 'block';
           successEl.textContent = '비밀번호 재설정 이메일을 보냈습니다. 받은 편지함을 확인해 주세요!';

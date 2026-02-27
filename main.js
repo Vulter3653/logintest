@@ -28,9 +28,6 @@ import {
   writeBatch
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-/* 관리자 설정 */
-const ADMIN_EMAIL = "vulter3653@gmail.com";
-
 /* 게시판 정의 */
 const BOARDS = [
   { id: 'free', name: '자유게시판', icon: '💬' },
@@ -39,7 +36,8 @@ const BOARDS = [
   { id: 'club', name: '학회/동아리', icon: '🤝' }
 ];
 
-/* 아바타 스타일 */
+const ADMIN_EMAIL = "vulter3653@gmail.com";
+
 const AVATAR_STYLES = [
   { id: 'avataaars', name: '사람' }, { id: 'adventurer', name: '모험가' }, { id: 'open-peeps', name: '스케치' }, { id: 'personas', name: '캐릭터' }, { id: 'lorelei', name: '애니' }, { id: 'bottts', name: '로봇' }, { id: 'pixel-art', name: '픽셀' }, { id: 'miniavs', name: '미니' }, { id: 'big-smile', name: '미소' }, { id: 'fun-emoji', name: '이모지' }, { id: 'notionists', name: '노션' }, { id: 'croodles', name: '낙서' }, { id: 'thumbs', name: '추상화' }, { id: 'identicon', name: '기하학' }, { id: 'rings', name: '원형' }
 ];
@@ -95,8 +93,8 @@ class ProfileSection extends HTMLElement {
         try {
           const snaps = await getDocs(query(collection(db, "comments"), where("authorUid", "==", user.uid)));
           if (!snaps.empty) { const batch = writeBatch(db); snaps.forEach(d => batch.delete(d.ref)); await batch.commit(); }
-          await deleteUser(user); alert("그동안 감사했습니다. 모든 데이터가 삭제되었습니다."); location.reload();
-        } catch (e) { alert("재인증이 필요합니다. 다시 로그인 후 시도해 주세요."); }
+          await deleteUser(user); alert("탈퇴 처리되었습니다."); location.reload();
+        } catch (e) { alert("로그인이 만료되었습니다. 다시 로그인해 주세요."); }
       }
     };
     this.shadowRoot.getElementById('back-to-feed').onclick = () => updateView('feed');
@@ -120,13 +118,7 @@ class CommentsSection extends HTMLElement {
         <div class="header-info"><h1 style="color:var(--primary); font-size:1.4rem; margin-bottom:2px;">SKKU Coffee Chat</h1><p style="color:var(--text-dim); font-size:0.75rem;">학우들과 나누는 따뜻한 대화</p></div>
         <div class="header-actions">
           <button style="background:none; border:none; cursor:pointer; font-size:1.1rem;" id="theme-btn">${currentTheme === 'dark' ? '☀️' : '🌙'}</button>
-          ${this.currentUser ? `
-            <div class="user-chip">
-              <img class="nav-avatar" src="${this.currentUser.photoURL || getAvatarUrl('avataaars', 'default')}">
-              <span id="profile-btn" class="nickname">${this.currentUser.displayName || '닉네임'}</span>
-              <button id="logout-btn" class="btn-logout-small">로그아웃</button>
-            </div>
-          ` : `<button id="main-login-btn" class="btn-post" style="margin-top:0; padding:6px 14px;">로그인</button>`}
+          ${this.currentUser ? `<div class="user-chip"><img class="nav-avatar" src="${this.currentUser.photoURL || getAvatarUrl('avataaars', 'default')}"><span id="profile-btn" class="nickname">${this.currentUser.displayName || '닉네임'}</span><button id="logout-btn" class="btn-logout-small">로그아웃</button></div>` : `<button id="main-login-btn" class="btn-post" style="margin-top:0; padding:6px 14px;">로그인</button>`}
         </div>
       </div>
       <div class="board-tabs">${BOARDS.map(b => `<div class="tab ${this.currentBoard === b.id ? 'active' : ''}" data-id="${b.id}">${b.icon} ${b.name}</div>`).join('')}</div>
@@ -207,13 +199,7 @@ class CommentsSection extends HTMLElement {
     const isVerified = this.currentUser.emailVerified || this.currentUser.providerData[0]?.providerId === 'google.com';
     const box = this.shadowRoot.getElementById(`reply-box-${targetId}`);
     if (box.innerHTML !== '') { box.innerHTML = ''; return; }
-    
-    // 이메일 미인증 시 안내 메시지 표시
-    if (!isVerified) {
-      box.innerHTML = `<div style="margin-top:10px; font-size:0.8rem; color:#ff4d4d; border:1px dashed #ff4d4d; padding:10px; border-radius:8px;">⚠️ 답글을 달려면 이메일 인증이 필요합니다. 메일함을 확인해 주세요!</div>`;
-      return;
-    }
-
+    if (!isVerified) { box.innerHTML = `<div style="margin-top:10px; font-size:0.8rem; color:#ff4d4d; border:1px dashed #ff4d4d; padding:10px; border-radius:8px;">⚠️ 이메일 인증 필요</div>`; return; }
     box.innerHTML = `<div style="margin-top:8px;"><textarea id="rin-${targetId}" placeholder="${targetName}님에게 답글 작성..." style="min-height:40px; font-size:0.9rem;">@${targetName} </textarea><div style="display:flex; justify-content:flex-end; gap:8px; margin-top:5px;"><button id="rcan-${targetId}" style="font-size:0.75rem; cursor:pointer; background:none; border:none; color:var(--text-dim);">취소</button><button class="btn-post" style="padding:4px 12px; font-size:0.75rem; margin-top:0;" id="rsub-${targetId}">등록</button></div></div>`;
     this.shadowRoot.getElementById(`rcan-${targetId}`).onclick = () => box.innerHTML = '';
     this.shadowRoot.getElementById(`rsub-${targetId}`).onclick = () => this.postComment(this.shadowRoot.getElementById(`rin-${targetId}`), targetId);
@@ -223,7 +209,15 @@ class CommentsSection extends HTMLElement {
     cEl.innerHTML = `<textarea id="in-${id}" style="min-height:50px; font-size:0.95rem;">${old}</textarea>`;
     aEl.innerHTML = `<div style="display:flex; justify-content:flex-end; gap:10px;"><button id="can-${id}" style="font-size:0.75rem; color:var(--text-dim); background:none; border:none; cursor:pointer;">취소</button><button id="sav-${id}" style="font-size:0.75rem; color:var(--primary); font-weight:700; background:none; border:none; cursor:pointer;">저장</button></div>`;
     this.shadowRoot.getElementById('can-'+id).onclick = () => { cEl.innerHTML = oC; aEl.innerHTML = oA; };
-    this.shadowRoot.getElementById('sav-'+id).onclick = async () => { const val = this.shadowRoot.getElementById('in-'+id).value.trim(); if (val) await updateDoc(doc(db, "comments", id), { content: val }); };
+    this.shadowRoot.getElementById('sav-'+id).onclick = async () => {
+      const val = this.shadowRoot.getElementById('in-'+id).value.trim();
+      if (!val) return;
+      try {
+        await updateDoc(doc(db, "comments", id), { content: val });
+        // 내용이 동일하더라도 강제 갱신하여 UI 복구
+        this.loadComments();
+      } catch (e) { alert("수정 실패"); }
+    };
   }
   escapeHTML(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
 }

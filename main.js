@@ -43,7 +43,6 @@ class CommentsSection extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this.currentUser = null;
-    this.replyingTo = null; // 현재 답글 작성 중인 부모 ID
   }
 
   connectedCallback() {
@@ -72,7 +71,6 @@ class CommentsSection extends HTMLElement {
         .comment-list { margin-top: 20px; clear: both; }
         .comment-item { background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 12px; border-left: 4px solid var(--primary); transition: 0.3s; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
         .comment-item.is-reply { margin-left: 40px; border-left-color: var(--secondary); background: rgba(128,128,128,0.02); }
-        .comment-item.mine { border-left-color: var(--secondary); }
         
         .author { font-weight: 700; color: var(--primary); font-size: 0.9rem; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
         .content { color: var(--text-main); font-size: 1rem; line-height: 1.6; white-space: pre-wrap; margin-bottom: 15px; }
@@ -80,17 +78,19 @@ class CommentsSection extends HTMLElement {
         .footer-actions { display: flex; gap: 15px; font-size: 0.85rem; color: var(--text-dim); align-items: center; }
         .action-link { cursor: pointer; display: flex; align-items: center; gap: 5px; transition: 0.2s; user-select: none; }
         .action-link:hover { color: var(--primary); }
-        .action-link.liked { color: #ff4d4d; font-weight: 700; }
         
-        .edit-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; }
-        .reply-box { margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(128,128,128,0.1); }
-        
+        /* 좋아요 버튼 스타일 강화 */
+        .like-btn { color: #ff4d4d; transition: transform 0.2s; }
+        .like-btn:hover { transform: scale(1.1); }
+        .like-btn.not-liked { opacity: 0.6; font-weight: 400; }
+        .like-btn.liked { opacity: 1; font-weight: 800; filter: drop-shadow(0 0 5px rgba(255,77,77,0.3)); }
+
         .theme-toggle { background: var(--card-bg); border: 1px solid rgba(128,128,128,0.2); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
         .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 700; }
       </style>
 
       <div class="header">
-        <div><h1 style="color:var(--primary); margin-bottom:4px; font-size:1.8rem;">SKKU Coffee Chat</h1><p style="color:var(--text-dim); font-size:0.85rem;">실시간 소통 및 답변</p></div>
+        <div><h1 style="color:var(--primary); margin-bottom:4px; font-size:1.8rem;">SKKU Coffee Chat</h1><p style="color:var(--text-dim); font-size:0.85rem;">실시간 소통 공간</p></div>
         <div style="display:flex; align-items:center; gap:12px;">
           <button class="theme-toggle" id="theme-btn">${currentTheme === 'dark' ? '☀️' : '🌙'}</button>
           ${this.currentUser ? `
@@ -148,7 +148,6 @@ class CommentsSection extends HTMLElement {
         likes: []
       });
       inputEl.value = '';
-      this.replyingTo = null;
     } catch (e) { alert("오류가 발생했습니다."); }
   }
 
@@ -163,38 +162,28 @@ class CommentsSection extends HTMLElement {
 
   loadComments() {
     const listEl = this.shadowRoot.getElementById('comment-list');
-    const q = query(collection(db, "comments"), orderBy("createdAt", "asc")); // 답글 순서를 위해 asc
-
-    onSnapshot(q, (snapshot) => {
-      const allComments = [];
-      snapshot.forEach(doc => allComments.push({ id: doc.id, ...doc.data() }));
-      
-      const parents = allComments.filter(c => !c.parentId);
-      const children = allComments.filter(c => c.parentId);
-
+    onSnapshot(query(collection(db, "comments"), orderBy("createdAt", "asc")), (snapshot) => {
+      const all = [];
+      snapshot.forEach(doc => all.push({ id: doc.id, ...doc.data() }));
+      const parents = all.filter(c => !c.parentId);
+      const children = all.filter(c => c.parentId);
       listEl.innerHTML = '';
-      if (parents.length === 0) {
-        listEl.innerHTML = '<p style="text-align:center; color:var(--text-dim)">아직 이야기가 없습니다.</p>';
-        return;
-      }
-
-      // 최신순 표시를 위해 부모만 뒤집음
+      if (parents.length === 0) { listEl.innerHTML = '<p style="text-align:center; color:var(--text-dim)">이야기를 시작해 보세요!</p>'; return; }
       parents.reverse().forEach(parent => {
-        this.renderCommentItem(listEl, parent, false);
-        const replies = children.filter(child => child.parentId === parent.id);
-        replies.forEach(reply => this.renderCommentItem(listEl, reply, true));
+        this.renderItem(listEl, parent, false);
+        children.filter(c => c.parentId === parent.id).forEach(reply => this.renderItem(listEl, reply, true));
       });
     });
   }
 
-  renderCommentItem(container, data, isReply) {
+  renderItem(container, data, isReply) {
     const isMine = this.currentUser && data.authorUid === this.currentUser.uid;
-    const likesCount = data.likes ? data.likes.length : 0;
     const isLiked = this.currentUser && data.likes?.includes(this.currentUser.uid);
+    const likesCount = data.likes ? data.likes.length : 0;
     const id = data.id;
 
     const item = document.createElement('div');
-    item.className = `comment-item ${isReply ? 'is-reply' : ''} ${isMine ? 'mine' : ''}`;
+    item.className = `comment-item ${isReply ? 'is-reply' : ''}`;
     item.innerHTML = `
       <div class="author">
         <span>${data.authorName || '익명'}${isMine ? ' (나)' : ''}</span>
@@ -202,51 +191,33 @@ class CommentsSection extends HTMLElement {
       </div>
       <div class="content" id="content-${id}">${this.escapeHTML(data.content)}</div>
       <div class="footer-actions" id="actions-${id}">
-        <div class="action-link ${isLiked ? 'liked' : ''}" id="like-${id}">
-          ${isLiked ? '❤️' : '🤍'} <span>${likesCount}</span>
+        <div class="action-link like-btn ${isLiked ? 'liked' : 'not-liked'}" id="like-${id}">
+          ❤️ 좋아요 <span>${likesCount}</span>
         </div>
-        ${!isReply ? `<div class="action-link" id="reply-btn-${id}">💬 답글</div>` : ''}
-        ${isMine ? `
-          <div class="action-link" id="edit-${id}">수정</div>
-          <div class="action-link" style="color:#ff4d4d" id="del-${id}">삭제</div>
-        ` : ''}
+        ${!isReply ? `<div class="action-link" id="rep-${id}">💬 답글</div>` : ''}
+        ${isMine ? `<div class="action-link" id="ed-${id}">수정</div><div class="action-link" style="color:#ff4d4d" id="del-${id}">삭제</div>` : ''}
       </div>
       <div id="reply-box-${id}"></div>
     `;
     container.appendChild(item);
 
-    // 이벤트 바인딩
     this.shadowRoot.getElementById(`like-${id}`).onclick = () => this.toggleLike(id, data.likes);
-    if (!isReply) {
-      this.shadowRoot.getElementById(`reply-btn-${id}`).onclick = () => this.showReplyBox(id);
-    }
+    if (!isReply) this.shadowRoot.getElementById(`rep-${id}`).onclick = () => this.showReplyBox(id);
     if (isMine) {
       this.shadowRoot.getElementById(`del-${id}`).onclick = () => this.deleteComment(id);
-      this.shadowRoot.getElementById(`edit-${id}`).onclick = () => this.startEdit(id, data.content);
+      this.shadowRoot.getElementById(`ed-${id}`).onclick = () => this.startEdit(id, data.content);
     }
   }
 
-  showReplyBox(parentId) {
-    if (!this.currentUser) return window.dispatchEvent(new CustomEvent('show-login'));
-    const box = this.shadowRoot.getElementById(`reply-box-${parentId}`);
+  showReplyBox(pid) {
+    const box = this.shadowRoot.getElementById(`reply-box-${pid}`);
     if (box.innerHTML !== '') { box.innerHTML = ''; return; }
-    
-    box.innerHTML = `
-      <div class="reply-box">
-        <textarea id="reply-input-${parentId}" placeholder="답글을 남겨주세요..." style="min-height:60px;"></textarea>
-        <div style="display:flex; justify-content:flex-end; gap:10px;">
-          <button class="btn-outline" style="font-size:0.8rem; padding:5px 12px;" id="reply-cancel-${parentId}">취소</button>
-          <button class="btn-post" style="font-size:0.8rem; padding:5px 12px;" id="reply-sub-${parentId}">답글 등록</button>
-        </div>
-      </div>
-    `;
-    this.shadowRoot.getElementById(`reply-cancel-${parentId}`).onclick = () => box.innerHTML = '';
-    this.shadowRoot.getElementById(`reply-sub-${parentId}`).onclick = () => this.postComment(this.shadowRoot.getElementById(`reply-input-${parentId}`), parentId);
+    box.innerHTML = `<div class="reply-box"><textarea id="rin-${pid}" placeholder="답글을 남겨주세요..." style="min-height:60px;"></textarea><div style="display:flex; justify-content:flex-end; gap:10px;"><button class="btn-outline" style="font-size:0.8rem; padding:5px 12px;" id="rcan-${pid}">취소</button><button class="btn-post" style="font-size:0.8rem; padding:5px 12px;" id="rsub-${pid}">등록</button></div></div>`;
+    this.shadowRoot.getElementById(`rcan-${pid}`).onclick = () => box.innerHTML = '';
+    this.shadowRoot.getElementById(`rsub-${pid}`).onclick = () => this.postComment(this.shadowRoot.getElementById(`rin-${pid}`), pid);
   }
 
-  async deleteComment(id) {
-    if (confirm("정말로 삭제하시겠습니까?")) await deleteDoc(doc(db, "comments", id));
-  }
+  async deleteComment(id) { if (confirm("삭제하시겠습니까?")) await deleteDoc(doc(db, "comments", id)); }
 
   async startEdit(id, old) {
     const cEl = this.shadowRoot.getElementById(`content-${id}`);
@@ -255,10 +226,7 @@ class CommentsSection extends HTMLElement {
     cEl.innerHTML = `<textarea id="in-${id}" style="min-height:60px;">${old}</textarea>`;
     aEl.innerHTML = `<button class="btn-action" id="can-${id}">취소</button><button class="btn-action" id="sav-${id}" style="color:var(--primary); font-weight:700">저장</button>`;
     this.shadowRoot.getElementById(`can-${id}`).onclick = () => { cEl.innerHTML = oC; aEl.innerHTML = oA; this.loadComments(); };
-    this.shadowRoot.getElementById(`sav-${id}`).onclick = async () => {
-      const val = this.shadowRoot.getElementById(`in-${id}`).value.trim();
-      if (val) await updateDoc(doc(db, "comments", id), { content: val });
-    };
+    this.shadowRoot.getElementById(`sav-${id}`).onclick = async () => { const val = this.shadowRoot.getElementById(`in-${id}`).value.trim(); if (val) await updateDoc(doc(db, "comments", id), { content: val }); };
   }
 
   escapeHTML(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
@@ -280,7 +248,7 @@ class LoginScreen extends HTMLElement {
       <style>
         @import url('/style.css');
         .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
-        .login-card { background: var(--card-bg); border-radius: 24px; padding: 40px; width: 90%; max-width: 400px; box-shadow: var(--shadow-deep); position: relative; border: 1px solid rgba(128,128,128,0.1); }
+        .login-card { background: var(--card-bg); border-radius: 24px; padding: 40px; width: 90%; max-width: 400px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); }
         h2 { text-align: center; margin-bottom: 24px; color: var(--primary); }
         .form-group { margin-bottom: 20px; }
         label { display: block; margin-bottom: 8px; color: var(--text-dim); font-size: 0.85rem; }

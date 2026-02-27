@@ -67,15 +67,14 @@ class ProfileSection extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         @import url('/style.css');
-        :host { display: block; width: 100%; max-width: 500px; margin: 60px auto; padding: 20px; }
-        .profile-card { background: var(--card-bg); border-radius: 24px; padding: 40px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); text-align: center; }
-        h2 { color: var(--primary); margin-bottom: 30px; }
+        :host { display: block; width: 100%; padding: 40px 0; }
+        .profile-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: clamp(20px, 5%, 40px); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); text-align: center; }
         .avatar-box { margin-bottom: 30px; padding: 20px; background: rgba(128,128,128,0.05); border-radius: 20px; }
-        .avatar-preview { width: 120px; height: 120px; border-radius: 50%; border: 4px solid var(--primary); background: #fff; margin-bottom: 20px; }
+        .avatar-preview { width: min(120px, 30vw); height: min(120px, 30vw); border-radius: 50%; border: 4px solid var(--primary); background: #fff; margin-bottom: 20px; }
         .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        select, .seed-input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(128,128,128,0.2); background: var(--card-bg); color: var(--text-main); font-family: inherit; }
+        select, .seed-input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(128,128,128,0.2); background: var(--card-bg); color: var(--text-main); font-size: 0.9rem; }
         .btn-save { width: 100%; padding: 16px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 12px; cursor: pointer; margin-top: 20px; transition: 0.3s; }
-        .btn-back { background: none; border: none; color: var(--text-dim); cursor: pointer; margin-top: 20px; text-decoration: underline; }
+        @media (max-width: 480px) { .controls-grid { grid-template-columns: 1fr; } }
       </style>
       <div class="profile-card">
         <h2>내 아바타 커스텀</h2>
@@ -93,14 +92,11 @@ class ProfileSection extends HTMLElement {
         </div>
         <div style="text-align:left; margin-bottom:20px;"><label style="display:block; margin-bottom:8px; font-size:0.9rem; color:var(--text-dim);">닉네임</label><input type="text" id="new-nickname" value="${user.displayName || ''}" style="width:100%; padding:14px; border-radius:12px; border:1px solid rgba(128,128,128,0.2); background:rgba(128,128,128,0.05); color:var(--text-main);"></div>
         <button id="save-profile" class="btn-save">모든 설정 저장하기</button>
-        <button id="back-to-feed" class="btn-back">피드로 돌아가기</button>
+        <button id="back-to-feed" style="background:none; border:none; color:var(--text-dim); cursor:pointer; margin-top:20px; text-decoration:underline;">피드로 돌아가기</button>
       </div>
     `;
-    const preview = this.shadowRoot.getElementById('preview');
-    const styleSelect = this.shadowRoot.getElementById('style-select');
-    const seedInput = this.shadowRoot.getElementById('seed-input');
-    const update = () => { this.currentStyle = styleSelect.value; this.currentSeed = seedInput.value; preview.src = getAvatarUrl(this.currentStyle, this.currentSeed); };
-    styleSelect.onchange = update; seedInput.oninput = update;
+    const update = () => { this.currentStyle = this.shadowRoot.getElementById('style-select').value; this.currentSeed = this.shadowRoot.getElementById('seed-input').value; this.shadowRoot.getElementById('preview').src = getAvatarUrl(this.currentStyle, this.currentSeed); };
+    this.shadowRoot.getElementById('style-select').onchange = update; this.shadowRoot.getElementById('seed-input').oninput = update;
     this.shadowRoot.getElementById('save-profile').onclick = async () => {
       const newName = this.shadowRoot.getElementById('new-nickname').value.trim();
       const photoURL = getAvatarUrl(this.currentStyle, this.currentSeed);
@@ -135,39 +131,43 @@ class CommentsSection extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>
         @import url('/style.css');
-        :host { display: block; width: 100%; max-width: 800px; margin: 0 auto; padding: 40px 20px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .board-tabs { display: flex; gap: 10px; margin-bottom: 30px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; }
-        .board-tabs::-webkit-scrollbar { display: none; }
-        .tab { padding: 12px 20px; border-radius: 20px; background: var(--card-bg); border: 1px solid rgba(128,128,128,0.1); color: var(--text-dim); cursor: pointer; white-space: nowrap; font-weight: 600; transition: 0.3s; display: flex; align-items: center; gap: 8px; }
-        .tab.active { background: var(--primary); color: var(--bg-color); border-color: var(--primary); box-shadow: var(--shadow-glow); }
-        .comment-input-card { background: var(--card-bg); border-radius: 16px; padding: 24px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 40px; }
-        textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 16px; color: var(--text-main); font-family: inherit; font-size: 1rem; resize: vertical; min-height: 80px; transition: 0.3s; margin-bottom: 12px; }
-        textarea:focus { outline: none; border-color: var(--primary); box-shadow: var(--shadow-glow); }
-        .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; float: right; transition: 0.3s; }
-        .comment-item { background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 12px; border-left: 4px solid var(--primary); position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
-        .comment-item.is-reply { margin-left: 40px; border-left-color: var(--secondary); background: rgba(128,128,128,0.02); }
-        .item-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-        .item-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #fff; }
+        :host { display: block; width: 100%; padding: clamp(20px, 5vw, 40px) 0; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; }
+        .board-tabs { display: flex; gap: 10px; margin-bottom: 30px; overflow-x: auto; padding-bottom: 10px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .tab { padding: 10px 18px; border-radius: 20px; background: var(--card-bg); border: 1px solid rgba(128,128,128,0.1); color: var(--text-dim); cursor: pointer; white-space: nowrap; font-size: 0.9rem; transition: 0.3s; }
+        .tab.active { background: var(--primary); color: var(--bg-color); font-weight: 700; }
+        
+        .comment-input-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: clamp(15px, 4vw, 24px); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 40px; position: sticky; top: 10px; z-index: 10; }
+        textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 14px; color: var(--text-main); font-family: inherit; font-size: 1rem; resize: none; min-height: 60px; transition: 0.3s; }
+        .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; margin-top: 10px; float: right; transition: 0.3s; }
+        
+        .comment-item { background: var(--card-bg); border-radius: var(--radius-md); padding: clamp(15px, 4vw, 20px); margin-bottom: 12px; border-left: 4px solid var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
+        .comment-item.is-reply { margin-left: clamp(20px, 8vw, 40px); border-left-color: var(--secondary); background: rgba(128,128,128,0.02); }
+        .item-avatar { width: clamp(30px, 10vw, 36px); height: clamp(30px, 10vw, 36px); border-radius: 50%; object-fit: cover; }
         .author-name { font-weight: 700; color: var(--primary); font-size: 0.9rem; }
-        .footer-actions { display: flex; gap: 15px; font-size: 0.85rem; color: var(--text-dim); }
-        .action-link { cursor: pointer; transition: 0.2s; }
-        .btn-outline { background: transparent; border: 2px solid var(--primary); color: var(--primary); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 700; }
+        .footer-actions { display: flex; gap: clamp(10px, 3vw, 15px); font-size: 0.8rem; color: var(--text-dim); margin-top: 10px; flex-wrap: wrap; }
+        .action-link { cursor: pointer; }
+        
+        @media (max-width: 480px) {
+          .header { flex-direction: column; align-items: flex-start; }
+          .header div:last-child { align-self: flex-end; }
+        }
       </style>
       <div class="header">
-        <div><h1 style="color:var(--primary); margin-bottom:4px; font-size:1.8rem;">SKKU Coffee Chat</h1><p style="color:var(--text-dim); font-size:0.85rem;">게시판을 선택해 보세요</p></div>
-        <div style="display:flex; align-items:center; gap:12px;">
+        <div><h1 style="color:var(--primary); margin-bottom:4px;">SKKU Coffee Chat</h1><p style="color:var(--text-dim); font-size:0.8rem;">함께 성장하는 마케팅 커뮤니티</p></div>
+        <div style="display:flex; align-items:center; gap:10px;">
           <button style="background:none; border:none; cursor:pointer; font-size:1.2rem;" id="theme-btn">${currentTheme === 'dark' ? '☀️' : '🌙'}</button>
-          ${this.currentUser ? `<span id="profile-btn" style="color:var(--primary); cursor:pointer; font-weight:600; text-decoration:underline;">${this.currentUser.displayName || '닉네임 설정'}</span>` : `<button id="main-login-btn" class="btn-post" style="float:none; padding:8px 16px;">로그인</button>`}
+          ${this.currentUser ? `<span id="profile-btn" style="color:var(--primary); cursor:pointer; font-weight:600; text-decoration:underline; font-size:0.9rem;">${this.currentUser.displayName || '닉네임'}</span>` : `<button id="main-login-btn" class="btn-post" style="margin-top:0; padding:8px 16px;">로그인</button>`}
         </div>
       </div>
       <div class="board-tabs">${BOARDS.map(b => `<div class="tab ${this.currentBoard === b.id ? 'active' : ''}" data-id="${b.id}">${b.icon} ${b.name}</div>`).join('')}</div>
       ${this.currentUser ? (isVerified ? `
         <div class="comment-input-card">
-          <textarea id="main-input" placeholder="${BOARDS.find(b=>b.id===this.currentBoard).name}에 글을 남겨보세요..."></textarea>
-          <button id="main-submit" class="btn-post">게시하기</button>
+          <textarea id="main-input" placeholder="${BOARDS.find(b=>b.id===this.currentBoard).name}에 남기기..."></textarea>
+          <button id="main-submit" class="btn-post">게시</button>
+          <div style="clear:both;"></div>
         </div>
-      ` : `<div class="comment-input-card" style="text-align:center;">⚠️ 이메일 인증이 필요합니다.</div>`) : `<div style="text-align:center; padding:30px; border:2px dashed rgba(128,128,128,0.2); border-radius:16px; color:var(--text-dim); margin-bottom:40px;">로그인 후 참여하세요.</div>`}
+      ` : `<div class="comment-input-card" style="text-align:center;">⚠️ 이메일 인증이 필요합니다.</div>`) : `<div style="text-align:center; padding:30px; border:2px dashed rgba(128,128,128,0.2); border-radius:16px; color:var(--text-dim); margin-bottom:40px; font-size:0.9rem;">로그인 후 참여해 보세요!</div>`}
       <div id="comment-list"></div>
     `;
     this.setupEventListeners();
@@ -181,13 +181,8 @@ class CommentsSection extends HTMLElement {
     if (mainSubmit) {
       mainSubmit.onclick = async () => {
         const input = this.shadowRoot.getElementById('main-input');
-        const text = input.value.trim();
-        if (!text) return;
-        await addDoc(collection(db, "comments"), { 
-          content: text, authorName: this.currentUser.displayName || "익명", 
-          authorUid: this.currentUser.uid, authorPhoto: this.currentUser.photoURL || '',
-          boardId: this.currentBoard, createdAt: serverTimestamp(), likes: [] 
-        });
+        if (!input.value.trim()) return;
+        await addDoc(collection(db, "comments"), { content: input.value.trim(), authorName: this.currentUser.displayName || "익명", authorUid: this.currentUser.uid, authorPhoto: this.currentUser.photoURL || '', boardId: this.currentBoard, createdAt: serverTimestamp(), likes: [] });
         input.value = '';
       };
     }
@@ -195,21 +190,11 @@ class CommentsSection extends HTMLElement {
   loadComments() {
     if (this.unsubscribe) this.unsubscribe();
     const listEl = this.shadowRoot.getElementById('comment-list');
-    
-    // 복합 색인 문제를 피하기 위해 orderBy를 제거하고 쿼리합니다.
-    const q = query(
-      collection(db, "comments"), 
-      where("boardId", "==", this.currentBoard)
-    );
-
-    this.unsubscribe = onSnapshot(q, (snapshot) => {
+    onSnapshot(query(collection(db, "comments"), where("boardId", "==", this.currentBoard)), (snapshot) => {
       const all = []; snapshot.forEach(d => all.push({ id: d.id, ...d.data() }));
-      
-      // 자바스크립트에서 직접 시간순으로 정렬합니다 (색인 불필요)
       all.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
-
       const parents = all.filter(c => !c.parentId);
-      listEl.innerHTML = parents.length === 0 ? '<p style="text-align:center; color:var(--text-dim); margin-top:40px;">이 게시판의 첫 주인공이 되어보세요!</p>' : '';
+      listEl.innerHTML = parents.length === 0 ? '<p style="text-align:center; color:var(--text-dim); margin-top:40px;">첫 게시글을 기다리고 있어요!</p>' : '';
       parents.reverse().forEach(p => {
         this.renderItem(listEl, p, false);
         all.filter(c => c.parentId === p.id).forEach(r => this.renderItem(listEl, r, true));
@@ -223,9 +208,9 @@ class CommentsSection extends HTMLElement {
     const item = document.createElement('div');
     item.className = `comment-item ${isReply ? 'is-reply' : ''}`;
     item.innerHTML = `
-      <div class="item-header"><img class="item-avatar" src="${data.authorPhoto || getAvatarUrl('avataaars', 'default')}"><div style="display:flex; flex-direction:column;"><span class="author-name">${data.authorName}${isMine ? ' (나)' : ''}</span><span style="font-size:0.7rem; color:var(--text-dim);">${data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString() : '방금 전'}</span></div></div>
+      <div class="item-header"><img class="item-avatar" src="${data.authorPhoto || getAvatarUrl('avataaars', 'default')}"><div style="display:flex; flex-direction:column;"><span class="author-name">${data.authorName}${isMine ? ' (나)' : ''}</span><span style="font-size:0.65rem; color:var(--text-dim);">${data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString() : '방금 전'}</span></div></div>
       <div class="content" id="content-${id}">${data.content}</div>
-      <div class="footer-actions"><div class="action-link" id="like-${id}" style="color:${isLiked ? '#ff4d4d' : 'var(--text-dim)'}">❤️ 좋아요 ${data.likes?.length || 0}</div>${!isReply ? `<div class="action-link" id="rep-${id}">💬 답글</div>` : ''}${isMine ? `<div class="action-link" id="ed-${id}">수정</div><div class="action-link" style="color:#ff4d4d" id="del-${id}">삭제</div>` : ''}</div><div id="reply-box-${id}"></div>
+      <div class="footer-actions"><div class="action-link" id="like-${id}" style="color:${isLiked ? '#ff4d4d' : 'var(--text-dim)'}">❤️ ${data.likes?.length || 0}</div>${!isReply ? `<div class="action-link" id="rep-${id}">💬 답글</div>` : ''}${isMine ? `<div class="action-link" id="ed-${id}">수정</div><div class="action-link" style="color:#ff4d4d" id="del-${id}">삭제</div>` : ''}</div><div id="reply-box-${id}"></div>
     `;
     container.appendChild(item);
     this.shadowRoot.getElementById(`like-${id}`).onclick = async () => { if (!this.currentUser) return window.dispatchEvent(new CustomEvent('show-login')); await updateDoc(doc(db, "comments", id), { likes: isLiked ? arrayRemove(this.currentUser.uid) : arrayUnion(this.currentUser.uid) }); };
@@ -238,13 +223,13 @@ class CommentsSection extends HTMLElement {
   showReplyBox(pid) {
     const box = this.shadowRoot.getElementById(`reply-box-${pid}`);
     if (box.innerHTML !== '') { box.innerHTML = ''; return; }
-    box.innerHTML = `<div style="margin-top:15px;"><textarea id="rin-${pid}" placeholder="답글 작성..."></textarea><div style="display:flex; justify-content:flex-end; gap:10px;"><button class="btn-outline" style="font-size:0.8rem; padding:5px 12px;" id="rcan-${pid}">취소</button><button class="btn-post" style="font-size:0.8rem; padding:5px 12px;" id="rsub-${pid}">등록</button></div></div>`;
+    box.innerHTML = `<div style="margin-top:10px;"><textarea id="rin-${pid}" placeholder="답글..." style="min-height:50px; font-size:0.9rem;"></textarea><div style="display:flex; justify-content:flex-end; gap:8px;"><button style="background:none; border:1px solid var(--text-dim); color:var(--text-dim); border-radius:5px; padding:4px 10px; font-size:0.75rem; cursor:pointer;" id="rcan-${pid}">취소</button><button class="btn-post" style="padding:4px 12px; font-size:0.75rem; margin-top:0;" id="rsub-${pid}">등록</button></div></div>`;
     this.shadowRoot.getElementById(`rcan-${pid}`).onclick = () => box.innerHTML = '';
     this.shadowRoot.getElementById(`rsub-${pid}`).onclick = () => { this.postComment(this.shadowRoot.getElementById(`rin-${pid}`), pid); box.innerHTML = ''; };
   }
   async startEdit(id, old) {
     const cEl = this.shadowRoot.getElementById(`content-${id}`);
-    cEl.innerHTML = `<textarea id="in-${id}">${old}</textarea><div style="display:flex; justify-content:flex-end; gap:10px;"><button id="can-${id}">취소</button><button id="sav-${id}" style="color:var(--primary); font-weight:700">저장</button></div>`;
+    cEl.innerHTML = `<textarea id="in-${id}">${old}</textarea><div style="display:flex; justify-content:flex-end; gap:8px; margin-top:5px;"><button id="can-${id}" style="font-size:0.8rem; background:none; border:none; color:var(--text-dim); cursor:pointer;">취소</button><button id="sav-${id}" style="font-size:0.8rem; background:none; border:none; color:var(--primary); font-weight:700; cursor:pointer;">저장</button></div>`;
     this.shadowRoot.getElementById(`can-${id}`).onclick = () => this.loadComments();
     this.shadowRoot.getElementById(`sav-${id}`).onclick = async () => { const val = this.shadowRoot.getElementById(`in-${id}`).value.trim(); if (val) await updateDoc(doc(db, "comments", id), { content: val }); };
   }
@@ -263,7 +248,7 @@ class LoginScreen extends HTMLElement {
   render() {
     if (!this.isVisible) { this.shadowRoot.innerHTML = ''; return; }
     this.shadowRoot.innerHTML = `
-      <style>@import url('/style.css'); .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); } .login-card { background: var(--card-bg); border-radius: 24px; padding: 40px; width: 90%; max-width: 400px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); position: relative; } h2 { text-align: center; margin-bottom: 24px; color: var(--primary); } input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); box-sizing: border-box; margin-bottom: 15px; } .btn-submit { width: 100%; padding: 14px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 8px; cursor: pointer; } .btn-close { position: absolute; top: 15px; right: 15px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-size: 1.5rem; } .btn-google { width: 100%; padding: 12px; background: #fff; color: #000; border: 1px solid #ddd; border-radius: 12px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; }</style>
+      <style>@import url('/style.css'); .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); } .login-card { background: var(--card-bg); border-radius: 24px; padding: clamp(20px, 8vw, 40px); width: min(400px, 90%); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); position: relative; } h2 { text-align: center; margin-bottom: 24px; color: var(--primary); } input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); box-sizing: border-box; margin-bottom: 15px; } .btn-submit { width: 100%; padding: 14px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 8px; cursor: pointer; } .btn-close { position: absolute; top: 15px; right: 15px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-size: 1.5rem; } .btn-google { width: 100%; padding: 12px; background: #fff; color: #000; border: 1px solid #ddd; border-radius: 12px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; font-size: 0.9rem; }</style>
       <div class="overlay"><div class="login-card"><button class="btn-close" id="close-btn">&times;</button><h2>${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '회원가입' : '비밀번호 찾기'}</h2><form id="auth-form">${this.mode === 'signup' ? `<input type="text" id="nickname" placeholder="닉네임" required>` : ''}<input type="email" id="email" placeholder="이메일" required>${this.mode !== 'reset' ? `<input type="password" id="password" placeholder="비밀번호" required minlength="6">` : ''}<button type="submit" id="submit-btn" class="btn-submit">${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '가입하기' : '발송'}</button></form><button id="google-btn" class="btn-google"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"> Google 계정 사용</button><div style="text-align:center; margin-top:20px; font-size:0.85rem; color:var(--text-dim);"><a id="toggle-link" style="color:var(--primary); cursor:pointer;">${this.mode === 'login' ? '회원가입 하러가기' : '로그인 하러가기'}</a></div></div></div>
     `;
     this.shadowRoot.getElementById('close-btn').onclick = () => { this.isVisible = false; this.render(); };

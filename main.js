@@ -124,33 +124,7 @@ class CommentsSection extends HTMLElement {
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
     const isVerified = this.currentUser && (this.currentUser.emailVerified || this.currentUser.providerData[0]?.providerId === 'google.com');
     this.shadowRoot.innerHTML = `
-      <style>
-        @import url('/style.css'); :host { display: block; width: 100%; padding: 20px 0; } 
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; flex-wrap: wrap; } 
-        .header-info { flex: 1; min-width: 180px; }
-        .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
-        .user-chip { display: flex; align-items: center; gap: 8px; background: rgba(128,128,128,0.08); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(128,128,128,0.1); white-space: nowrap; flex-shrink: 0; }
-        .nav-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
-        .nickname { font-weight: 700; color: var(--primary); font-size: 0.85rem; cursor: pointer; text-decoration: underline; }
-        .btn-logout-small { background: none; border: 1px solid var(--text-dim); color: var(--text-dim); padding: 3px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; transition: 0.2s; }
-        .board-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; } 
-        .tab { padding: 8px 16px; border-radius: 20px; background: var(--card-bg); border: 1px solid rgba(128,128,128,0.1); color: var(--text-dim); cursor: pointer; white-space: nowrap; font-size: 0.85rem; transition: 0.3s; } 
-        .tab.active { background: var(--primary); color: var(--bg-color); font-weight: 700; } 
-        .comment-input-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 30px; position: sticky; top: 10px; z-index: 10; } 
-        textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 12px; color: var(--text-main); font-family: inherit; font-size: 0.95rem; resize: none; min-height: 50px; } 
-        .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; margin-top: 8px; float: right; font-size: 0.9rem; } 
-        .comment-item { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 10px; border-left: 3px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.02); transition: 0.3s; position: relative; } 
-        .comment-item[data-depth="1"] { margin-left: 30px; border-left-color: var(--secondary); background: rgba(128,128,128,0.01); }
-        .comment-item[data-depth="2"] { margin-left: 60px; border-left-color: var(--accent); background: rgba(128,128,128,0.02); }
-        .item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; } 
-        .item-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(128,128,128,0.1); } 
-        .author-name { font-weight: 700; color: var(--primary); font-size: 0.85rem; } 
-        .timestamp { font-size: 0.65rem; color: var(--text-dim); margin-left: auto; }
-        .content { color: var(--text-main); font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; margin-bottom: 10px; } 
-        .footer-actions { display: flex; gap: 12px; font-size: 0.75rem; color: var(--text-dim); } 
-        .action-link { cursor: pointer; opacity: 0.8; } .action-link:hover { opacity: 1; color: var(--primary); }
-        .mention { color: var(--primary); font-weight: 700; margin-right: 5px; }
-      </style>
+      <style>@import url('/style.css'); :host { display: block; width: 100%; padding: 20px 0; } .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; flex-wrap: wrap; } .header-info { flex: 1; min-width: 180px; } .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; } .user-chip { display: flex; align-items: center; gap: 8px; background: rgba(128,128,128,0.08); padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(128,128,128,0.1); white-space: nowrap; flex-shrink: 0; } .nav-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; } .nickname { font-weight: 700; color: var(--primary); font-size: 0.85rem; cursor: pointer; text-decoration: underline; } .btn-logout-small { background: none; border: 1px solid var(--text-dim); color: var(--text-dim); padding: 3px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; transition: 0.2s; } .board-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; } .tab { padding: 8px 16px; border-radius: 20px; background: var(--card-bg); border: 1px solid rgba(128,128,128,0.1); color: var(--text-dim); cursor: pointer; white-space: nowrap; font-size: 0.85rem; transition: 0.3s; } .tab.active { background: var(--primary); color: var(--bg-color); font-weight: 700; } .comment-input-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 30px; position: sticky; top: 10px; z-index: 10; } textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 12px; color: var(--text-main); font-family: inherit; font-size: 0.95rem; resize: none; min-height: 50px; } .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; margin-top: 8px; float: right; font-size: 0.9rem; } .comment-item { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 10px; border-left: 3px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.02); transition: 0.3s; position: relative; } .comment-item[data-depth="1"] { margin-left: 30px; border-left-color: var(--secondary); background: rgba(128,128,128,0.01); } .comment-item[data-depth="2"] { margin-left: 60px; border-left-color: var(--accent); background: rgba(128,128,128,0.02); } .item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; } .item-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(128,128,128,0.1); } .author-name { font-weight: 700; color: var(--primary); font-size: 0.85rem; } .timestamp { font-size: 0.65rem; color: var(--text-dim); margin-left: auto; } .content { color: var(--text-main); font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; margin-bottom: 10px; } .footer-actions { display: flex; gap: 12px; font-size: 0.75rem; color: var(--text-dim); } .action-link { cursor: pointer; opacity: 0.8; } .mention { color: var(--primary); font-weight: 700; margin-right: 5px; }</style>
       <div class="header">
         <div class="header-info"><h1 style="color:var(--primary); font-size:1.4rem; margin-bottom:2px;">SKKU Coffee Chat</h1><p style="color:var(--text-dim); font-size:0.75rem;">학우들과 나누는 따뜻한 대화</p></div>
         <div class="header-actions">
@@ -274,7 +248,7 @@ class LoginScreen extends HTMLElement {
         const result = await signInWithPopup(auth, googleProvider); 
         const details = getAdditionalUserInfo(result);
         if (details.isNewUser) {
-          alert("주의: 닉네임을 변경하지 않으면 구글 닉네임으로 댓글이 게시됩니다!");
+          alert("반가워요! 닉네임과 프로필 사진을 변경하지 않으시면 구글 정보로 활동하게 됩니다. 나중에 프로필 설정에서 언제든지 예쁘게 꾸미실 수 있어요! ✨");
         }
       } catch(e) {} 
     };

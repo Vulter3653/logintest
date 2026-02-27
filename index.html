@@ -1,14 +1,18 @@
 <!doctype html>
-<html lang="en">
+<html lang="ko">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
+  <title>로그인 | Login Screen</title>
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
   <link href='/style.css' rel='stylesheet'>
+  <script defer type="text/javascript" src="/main.js"></script>
 </head>
 <body>
-  <h1>Hello, world!</h1>
-  <button onclick="console.log('hello');">Press me</button>
-  <script defer type="text/javascript" src="/main.js"></script>
+  <!-- Decorative background elements -->
+  <div style="position: absolute; top: -10%; left: -10%; width: 50%; height: 50%; background: var(--primary); filter: blur(150px); opacity: 0.15; border-radius: 50%; pointer-events: none;"></div>
+  <div style="position: absolute; bottom: -10%; right: -10%; width: 40%; height: 40%; background: var(--accent); filter: blur(150px); opacity: 0.1; border-radius: 50%; pointer-events: none;"></div>
+
+  <login-screen></login-screen>
 </body>
 </html>

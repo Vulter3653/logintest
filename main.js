@@ -52,11 +52,19 @@ const getAvatarUrl = (style, seed) => `https://api.dicebear.com/7.x/${style || '
 
 /* 프로필 설정 컴포넌트 */
 class ProfileSection extends HTMLElement {
-  constructor() { super(); this.attachShadow({ mode: 'open' }); this.currentStyle = 'avataaars'; this.currentSeed = ''; }
+  constructor() { 
+    super(); 
+    this.attachShadow({ mode: 'open' }); 
+    this.currentStyle = 'avataaars';
+    this.currentSeed = ''; 
+  }
+  
   connectedCallback() { this.render(); window.addEventListener('theme-update', () => this.render()); }
+  
   render() {
     const user = auth.currentUser;
     if (!user) return;
+    
     if (!this.currentSeed) {
       const url = user.photoURL || '';
       const styleMatch = url.match(/\/7\.x\/([^/]+)\//);
@@ -64,39 +72,82 @@ class ProfileSection extends HTMLElement {
       this.currentStyle = styleMatch ? styleMatch[1] : 'avataaars';
       this.currentSeed = seedMatch ? seedMatch[1] : user.uid.substring(0, 5);
     }
+
     this.shadowRoot.innerHTML = `
-      <style>@import url('/style.css'); :host { display: block; width: 100%; padding: 40px 0; } .profile-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: clamp(20px, 5%, 40px); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); text-align: center; } .avatar-preview { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--primary); background: #fff; margin-bottom: 20px; } .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } select, .seed-input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(128,128,128,0.2); background: var(--card-bg); color: var(--text-main); } .btn-save { width: 100%; padding: 16px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 12px; cursor: pointer; margin-top: 20px; }</style>
+      <style>
+        @import url('/style.css');
+        :host { display: block; width: 100%; padding: 40px 0; }
+        .profile-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: clamp(20px, 5%, 40px); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); text-align: center; }
+        .avatar-preview { width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--primary); background: #fff; margin-bottom: 20px; }
+        .form-group { text-align: left; margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--text-dim); }
+        select, input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(128,128,128,0.2); background: var(--card-bg); color: var(--text-main); font-family: inherit; margin-bottom: 10px; }
+        .btn-save { width: 100%; padding: 16px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 12px; cursor: pointer; margin-top: 20px; transition: 0.3s; }
+      </style>
       <div class="profile-card">
-        <h2>내 아바타 커스텀</h2>
-        <div style="margin-bottom:30px;"><img class="avatar-preview" id="preview" src="${getAvatarUrl(this.currentStyle, this.currentSeed)}"><div class="controls-grid"><select id="style-select"><option value="avataaars" ${this.currentStyle === 'avataaars' ? 'selected' : ''}>사람</option><option value="bottts" ${this.currentStyle === 'bottts' ? 'selected' : ''}>로봇</option><option value="pixel-art" ${this.currentStyle === 'pixel-art' ? 'selected' : ''}>픽셀</option></select><input type="text" id="seed-input" class="seed-input" value="${this.currentSeed}"></div></div>
-        <div style="text-align:left; margin-bottom:20px;"><label style="display:block; margin-bottom:8px; font-size:0.9rem;">닉네임</label><input type="text" id="new-nickname" value="${user.displayName || ''}" style="width:100%; padding:14px; border-radius:12px; border:1px solid rgba(128,128,128,0.2); background:rgba(128,128,128,0.05); color:var(--text-main);"></div>
-        <button id="save-profile" class="btn-save">저장하기</button>
+        <h2>프로필 설정</h2>
+        <img class="avatar-preview" id="preview" src="${getAvatarUrl(this.currentStyle, this.currentSeed)}">
+        
+        <div class="form-group">
+          <label>아바타 스타일</label>
+          <select id="style-select">
+            <option value="avataaars" ${this.currentStyle === 'avataaars' ? 'selected' : ''}>사람</option>
+            <option value="bottts" ${this.currentStyle === 'bottts' ? 'selected' : ''}>로봇</option>
+            <option value="pixel-art" ${this.currentStyle === 'pixel-art' ? 'selected' : ''}>픽셀</option>
+            <option value="lorelei" ${this.currentStyle === 'lorelei' ? 'selected' : ''}>귀여운</option>
+            <option value="personas" ${this.currentStyle === 'personas' ? 'selected' : ''}>캐릭터</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>아바타 키워드</label>
+          <input type="text" id="seed-input" value="${this.currentSeed}" placeholder="나만의 키워드 입력">
+        </div>
+
+        <div class="form-group">
+          <label>닉네임</label>
+          <input type="text" id="new-nickname" value="${user.displayName || ''}">
+        </div>
+        
+        <button id="save-profile" class="btn-save">모든 내용 저장</button>
         <button id="back-to-feed" style="background:none; border:none; color:var(--text-dim); cursor:pointer; margin-top:20px; text-decoration:underline;">피드로 돌아가기</button>
       </div>
     `;
-    this.shadowRoot.getElementById('style-select').onchange = () => { this.currentStyle = this.shadowRoot.getElementById('style-select').value; this.shadowRoot.getElementById('preview').src = getAvatarUrl(this.currentStyle, this.currentSeed); };
-    this.shadowRoot.getElementById('seed-input').oninput = () => { this.currentSeed = this.shadowRoot.getElementById('seed-input').value; this.shadowRoot.getElementById('preview').src = getAvatarUrl(this.currentStyle, this.currentSeed); };
+
+    const update = () => {
+      this.currentStyle = this.shadowRoot.getElementById('style-select').value;
+      this.currentSeed = this.shadowRoot.getElementById('seed-input').value;
+      this.shadowRoot.getElementById('preview').src = getAvatarUrl(this.currentStyle, this.currentSeed);
+    };
+    this.shadowRoot.getElementById('style-select').onchange = update;
+    this.shadowRoot.getElementById('seed-input').oninput = update;
+
     this.shadowRoot.getElementById('save-profile').onclick = async () => {
-      const newName = this.shadowRoot.getElementById('new-nickname').value.trim();
-      const photoURL = getAvatarUrl(this.currentStyle, this.currentSeed);
+      const btn = this.shadowRoot.getElementById('save-profile');
+      btn.disabled = true; btn.textContent = "저장 중...";
       try {
+        const newName = this.shadowRoot.getElementById('new-nickname').value.trim();
+        const photoURL = getAvatarUrl(this.currentStyle, this.currentSeed);
         await updateProfile(user, { displayName: newName, photoURL });
-        const q = query(collection(db, "comments"), where("authorUid", "==", user.uid));
-        const snaps = await getDocs(q);
-        if (!snaps.empty) { const batch = writeBatch(db); snaps.forEach(d => batch.update(d.ref, { authorName: newName, authorPhoto: photoURL })); await batch.commit(); }
-        alert("저장되었습니다!"); location.reload();
-      } catch (e) { alert("오류"); }
+        const snaps = await getDocs(query(collection(db, "comments"), where("authorUid", "==", user.uid)));
+        if (!snaps.empty) {
+          const batch = writeBatch(db);
+          snaps.forEach(d => batch.update(d.ref, { authorName: newName, authorPhoto: photoURL }));
+          await batch.commit();
+        }
+        alert("정보가 변경되었습니다!"); location.reload();
+      } catch (e) { alert("저장 실패"); btn.disabled = false; }
     };
     this.shadowRoot.getElementById('back-to-feed').onclick = () => updateView('feed');
   }
 }
 customElements.define('profile-section', ProfileSection);
 
-/* 댓글 컴포넌트 (디자인 개선) */
+/* 댓글 컴포넌트 */
 class CommentsSection extends HTMLElement {
-  constructor() { super(); this.attachShadow({ mode: 'open' }); this.currentUser = null; this.currentBoard = BOARDS[0].id; this.unsubscribe = null; this.isDataLoaded = false; }
+  constructor() { super(); this.attachShadow({ mode: 'open' }); this.currentUser = null; this.currentBoard = BOARDS[0].id; this.unsubscribe = null; }
   connectedCallback() {
-    onAuthStateChanged(auth, (user) => { this.currentUser = user; this.render(); if (!this.isDataLoaded) this.loadComments(); });
+    onAuthStateChanged(auth, (user) => { this.currentUser = user; this.render(); this.loadComments(); });
     window.addEventListener('theme-update', (e) => { const btn = this.shadowRoot.getElementById('theme-btn'); if (btn) btn.textContent = e.detail.theme === 'dark' ? '☀️' : '🌙'; });
   }
   render() {
@@ -113,17 +164,13 @@ class CommentsSection extends HTMLElement {
         .comment-input-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 30px; position: sticky; top: 10px; z-index: 10; } 
         textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 12px; color: var(--text-main); font-family: inherit; font-size: 0.95rem; resize: none; min-height: 50px; } 
         .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; margin-top: 8px; float: right; font-size: 0.9rem; } 
-        
-        /* 댓글 아이템 디자인 개선 */
-        .comment-item { background: var(--card-bg); border-radius: var(--radius-md); padding: 16px; margin-bottom: 10px; border-left: 3px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.02); } 
+        .comment-item { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 10px; border-left: 3px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.02); } 
         .comment-item.is-reply { margin-left: 30px; border-left-color: var(--secondary); background: rgba(128,128,128,0.01); } 
-        
         .item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; } 
-        .item-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; background: #fff; border: 1px solid rgba(128,128,128,0.1); } 
+        .item-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(128,128,128,0.1); } 
         .author-name { font-weight: 700; color: var(--primary); font-size: 0.85rem; } 
         .timestamp { font-size: 0.65rem; color: var(--text-dim); margin-left: auto; }
-        
-        .content { color: var(--text-main); font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; margin-bottom: 10px; padding-left: 2px; } 
+        .content { color: var(--text-main); font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; margin-bottom: 10px; } 
         .footer-actions { display: flex; gap: 12px; font-size: 0.75rem; color: var(--text-dim); } 
         .action-link { cursor: pointer; opacity: 0.8; } .action-link:hover { opacity: 1; color: var(--primary); }
       </style>
@@ -135,7 +182,7 @@ class CommentsSection extends HTMLElement {
         </div>
       </div>
       <div class="board-tabs">${BOARDS.map(b => `<div class="tab ${this.currentBoard === b.id ? 'active' : ''}" data-id="${b.id}">${b.icon} ${b.name}</div>`).join('')}</div>
-      ${this.currentUser ? (isVerified ? `<div class="comment-input-card"><textarea id="main-input" placeholder="이야기 남기기..."></textarea><button id="main-submit" class="btn-post">게시</button><div style="clear:both;"></div></div>` : `<div class="comment-input-card" style="text-align:center; font-size:0.85rem;">인증이 필요합니다.</div>`) : `<div style="text-align:center; padding:20px; border:2px dashed rgba(128,128,128,0.1); border-radius:16px; color:var(--text-dim); margin-bottom:30px; font-size:0.85rem;">로그인 후 참여하세요.</div>`}
+      ${this.currentUser ? (isVerified ? `<div class="comment-input-card"><textarea id="main-input" placeholder="이야기 남기기..."></textarea><button id="main-submit" class="btn-post">게시</button><div style="clear:both;"></div></div>` : `<div class="comment-input-card" style="text-align:center; font-size:0.85rem;">인증 필요</div>`) : `<div style="text-align:center; padding:20px; border:2px dashed rgba(128,128,128,0.1); border-radius:16px; color:var(--text-dim); margin-bottom:30px; font-size:0.85rem;">로그인 후 참여하세요.</div>`}
       <div id="comment-list"></div>
     `;
     this.setupEventListeners();
@@ -146,54 +193,88 @@ class CommentsSection extends HTMLElement {
     if (this.shadowRoot.getElementById('main-login-btn')) this.shadowRoot.getElementById('main-login-btn').onclick = () => window.dispatchEvent(new CustomEvent('show-login'));
     this.shadowRoot.querySelectorAll('.tab').forEach(tab => { tab.onclick = () => { this.currentBoard = tab.dataset.id; this.render(); this.loadComments(); }; });
     const sub = this.shadowRoot.getElementById('main-submit');
-    if (sub) sub.onclick = async () => {
-      const input = this.shadowRoot.getElementById('main-input');
-      if (!input.value.trim()) return;
-      await addDoc(collection(db, "comments"), { content: input.value.trim(), authorName: this.currentUser.displayName || "익명", authorUid: this.currentUser.uid, authorPhoto: this.currentUser.photoURL || '', boardId: this.currentBoard, createdAt: serverTimestamp(), likes: [] });
-      input.value = '';
-    };
+    if (sub) sub.onclick = () => this.postComment(this.shadowRoot.getElementById('main-input'));
   }
+
+  async postComment(inputEl, pid = null) {
+    const text = inputEl.value.trim();
+    if (!text || !this.currentUser) return;
+    try {
+      await addDoc(collection(db, "comments"), { 
+        content: text, authorName: this.currentUser.displayName || "익명", 
+        authorUid: this.currentUser.uid, authorPhoto: this.currentUser.photoURL || '',
+        boardId: this.currentBoard, parentId: pid, createdAt: serverTimestamp(), likes: [] 
+      });
+      inputEl.value = '';
+      if (pid) this.shadowRoot.getElementById(`reply-box-${pid}`).innerHTML = '';
+    } catch (e) { alert("등록 실패"); }
+  }
+
   loadComments() {
     if (this.unsubscribe) this.unsubscribe();
-    this.isDataLoaded = true;
-    const q = query(collection(db, "comments"), where("boardId", "==", this.currentBoard));
-    this.unsubscribe = onSnapshot(q, (snapshot) => {
+    onSnapshot(query(collection(db, "comments"), where("boardId", "==", this.currentBoard)), (snapshot) => {
       const all = []; snapshot.forEach(d => all.push({ id: d.id, ...d.data() }));
       all.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
       const parents = all.filter(c => !c.parentId);
       const listEl = this.shadowRoot.getElementById('comment-list');
       listEl.innerHTML = '';
-      parents.reverse().forEach(p => { this.renderItem(listEl, p, false); all.filter(c => c.parentId === p.id).forEach(r => this.renderItem(listEl, r, true)); });
+      parents.reverse().forEach(p => { 
+        this.renderItem(listEl, p, false); 
+        all.filter(c => c.parentId === p.id).forEach(r => this.renderItem(listEl, r, true)); 
+      });
     });
   }
+
   renderItem(container, data, isReply) {
     const isMine = this.currentUser && data.authorUid === this.currentUser.uid;
-    const isLiked = this.currentUser && data.likes?.includes(this.currentUser.uid);
     const id = data.id;
     const item = document.createElement('div');
     item.className = `comment-item ${isReply ? 'is-reply' : ''}`;
     item.innerHTML = `
-      <div class="item-header"><img class="item-avatar" src="${data.authorPhoto || getAvatarUrl('avataaars', 'default')}"><span class="author-name">${data.authorName}${isMine ? ' (나)' : ''}</span><span class="timestamp">${data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString('ko-KR', {hour:'2-digit', minute:'2-digit'}) : '방금 전'}</span></div>
+      <div class="item-header"><img class="item-avatar" src="${data.authorPhoto || getAvatarUrl('avataaars', 'default')}"><span class="author-name">${data.authorName}${isMine ? ' (나)' : ''}</span><span class="timestamp">${data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString('ko-KR', {hour:'2-digit', minute:'2-digit'}) : ''}</span></div>
       <div class="content" id="content-${id}">${data.content}</div>
-      <div class="footer-actions"><div class="action-link" id="like-${id}" style="color:${isLiked ? '#ff4d4d' : 'inherit'}">❤️ ${data.likes?.length || 0}</div>${!isReply ? `<div class="action-link" id="rep-${id}">💬 답글</div>` : ''}${isMine ? `<div class="action-link" id="ed-${id}">수정</div><div class="action-link" style="color:#ff4d4d" id="del-${id}">삭제</div>` : ''}</div><div id="reply-box-${id}"></div>
+      <div class="footer-actions" id="act-${id}">
+        <div class="action-link" id="like-${id}" style="color:${this.currentUser && data.likes?.includes(this.currentUser.uid) ? '#ff4d4d' : 'inherit'}">❤️ ${data.likes?.length || 0}</div>
+        ${!isReply ? `<div class="action-link" id="rep-${id}">💬 답글</div>` : ''}
+        ${isMine ? `<div class="action-link" id="ed-${id}">수정</div><div class="action-link" style="color:#ff4d4d" id="del-${id}">삭제</div>` : ''}
+      </div>
+      <div id="reply-box-${id}"></div>
     `;
     container.appendChild(item);
-    this.shadowRoot.getElementById(`like-${id}`).onclick = async () => { if (!this.currentUser) return window.dispatchEvent(new CustomEvent('show-login')); await updateDoc(doc(db, "comments", id), { likes: isLiked ? arrayRemove(this.currentUser.uid) : arrayUnion(this.currentUser.uid) }); };
+    this.shadowRoot.getElementById(`like-${id}`).onclick = async () => {
+      if (!this.currentUser) return window.dispatchEvent(new CustomEvent('show-login'));
+      const isLiked = data.likes?.includes(this.currentUser.uid);
+      await updateDoc(doc(db, "comments", id), { likes: isLiked ? arrayRemove(this.currentUser.uid) : arrayUnion(this.currentUser.uid) });
+    };
     if (!isReply) this.shadowRoot.getElementById(`rep-${id}`).onclick = () => this.showReplyBox(id);
-    if (isMine) { this.shadowRoot.getElementById(`del-${id}`).onclick = async () => { if (confirm("삭제?")) await deleteDoc(doc(db, "comments", id)); }; this.shadowRoot.getElementById(`ed-${id}`).onclick = () => this.startEdit(id, data.content); }
+    if (isMine) {
+      this.shadowRoot.getElementById(`del-${id}`).onclick = async () => { if (confirm("삭제하실거에요..?")) await deleteDoc(doc(db, "comments", id)); };
+      this.shadowRoot.getElementById(`ed-${id}`).onclick = () => this.startEdit(id, data.content);
+    }
   }
+
   showReplyBox(pid) {
     const box = this.shadowRoot.getElementById(`reply-box-${pid}`);
     if (box.innerHTML !== '') { box.innerHTML = ''; return; }
-    box.innerHTML = `<div style="margin-top:8px;"><textarea id="rin-${pid}" placeholder="답글..." style="min-height:40px; font-size:0.9rem;"></textarea><div style="display:flex; justify-content:flex-end; gap:8px; margin-top:5px;"><button id="rcan-${pid}" style="font-size:0.75rem; cursor:pointer; background:none; border:none; color:var(--text-dim);">취소</button><button class="btn-post" style="padding:4px 12px; font-size:0.75rem; margin-top:0;" id="rsub-${pid}">등록</button></div></div>`;
+    box.innerHTML = `<div style="margin-top:8px;"><textarea id="rin-${pid}" placeholder="답글 작성..."></textarea><div style="display:flex; justify-content:flex-end; gap:8px; margin-top:5px;"><button id="rcan-${pid}" style="font-size:0.75rem; cursor:pointer; background:none; border:none; color:var(--text-dim);">취소</button><button class="btn-post" style="padding:4px 12px; font-size:0.75rem; margin-top:0;" id="rsub-${pid}">등록</button></div></div>`;
     this.shadowRoot.getElementById(`rcan-${pid}`).onclick = () => box.innerHTML = '';
-    this.shadowRoot.getElementById(`rsub-${pid}`).onclick = () => { this.postComment(this.shadowRoot.getElementById(`rin-${pid}`), pid); box.innerHTML = ''; };
+    this.shadowRoot.getElementById(`rsub-${pid}`).onclick = () => this.postComment(this.shadowRoot.getElementById(`rin-${pid}`), pid);
   }
+
   async startEdit(id, old) {
     const cEl = this.shadowRoot.getElementById(`content-${id}`);
-    cEl.innerHTML = `<textarea id="in-${id}" style="min-height:50px; font-size:0.9rem;">${old}</textarea><div style="display:flex; justify-content:flex-end; gap:8px; margin-top:5px;"><button id="can-${id}" style="font-size:0.75rem; color:var(--text-dim); background:none; border:none; cursor:pointer;">취소</button><button id="sav-${id}" style="font-size:0.75rem; color:var(--primary); font-weight:700; background:none; border:none; cursor:pointer;">저장</button></div>`;
-    this.shadowRoot.getElementById(`can-${id}`).onclick = () => this.loadComments();
-    this.shadowRoot.getElementById(`sav-${id}`).onclick = async () => { const val = this.shadowRoot.getElementById(`in-${id}`).value.trim(); if (val) await updateDoc(doc(db, "comments", id), { content: val }); };
+    const aEl = this.shadowRoot.getElementById(`act-${id}`);
+    const oC = cEl.innerHTML; const oA = aEl.innerHTML;
+    cEl.innerHTML = `<textarea id="in-${id}" style="min-height:50px; font-size:0.9rem;">${old}</textarea>`;
+    aEl.innerHTML = `<div style="display:flex; justify-content:flex-end; gap:10px;"><button id="can-${id}" style="font-size:0.75rem; color:var(--text-dim); background:none; border:none; cursor:pointer;">취소</button><button id="sav-${id}" style="font-size:0.75rem; color:var(--primary); font-weight:700; background:none; border:none; cursor:pointer;">저장</button></div>`;
+    this.shadowRoot.getElementById(`can-${id}`).onclick = () => { cEl.innerHTML = oC; aEl.innerHTML = oA; };
+    this.shadowRoot.getElementById(`sav-${id}`).onclick = async () => {
+      const val = this.shadowRoot.getElementById(`in-${id}`).value.trim();
+      if (val) {
+        await updateDoc(doc(db, "comments", id), { content: val });
+        // onSnapshot에서 자동 갱신됨
+      }
+    };
   }
 }
 customElements.define('comments-section', CommentsSection);

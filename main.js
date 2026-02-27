@@ -26,7 +26,18 @@ import {
   writeBatch
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-/* 테마 관리 */
+/* 테마 및 아바타 스타일 설정 */
+const AVATAR_STYLES = [
+  { id: 'avataaars', name: '사람' },
+  { id: 'bottts', name: '로봇' },
+  { id: 'pixel-art', name: '픽셀' },
+  { id: 'lorelei', name: '귀여운' },
+  { id: 'personas', name: '캐릭터' },
+  { id: 'miniavs', name: '미니' },
+  { id: 'big-smile', name: '미소' },
+  { id: 'thumbs', name: '추상화' }
+];
+
 const initTheme = () => {
   const savedTheme = localStorage.getItem('theme') || 'light';
   document.documentElement.setAttribute('data-theme', savedTheme);
@@ -40,21 +51,31 @@ const toggleTheme = () => {
 };
 initTheme();
 
-// DiceBear 아바타 URL 생성 함수
-const getAvatarUrl = (seed) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed || 'default'}`;
+// DiceBear URL 생성기 (스타일 포함)
+const getAvatarUrl = (style, seed) => `https://api.dicebear.com/7.x/${style || 'avataaars'}/svg?seed=${seed || 'default'}`;
 
 /* 프로필 설정 컴포넌트 */
 class ProfileSection extends HTMLElement {
-  constructor() { super(); this.attachShadow({ mode: 'open' }); this.currentSeed = ''; }
+  constructor() { 
+    super(); 
+    this.attachShadow({ mode: 'open' }); 
+    this.currentStyle = 'avataaars';
+    this.currentSeed = ''; 
+  }
+  
   connectedCallback() { this.render(); }
+  
   render() {
     const user = auth.currentUser;
     if (!user) return;
+    
     if (!this.currentSeed) {
-      // 기존 photoURL에서 seed 추출 시도 (없으면 기본값)
       const url = user.photoURL || '';
-      const match = url.match(/seed=([^&]+)/);
-      this.currentSeed = match ? match[1] : user.uid.substring(0, 5);
+      // URL에서 스타일과 시드 추출 시도
+      const styleMatch = url.match(/\/7\.x\/([^/]+)\//);
+      const seedMatch = url.match(/seed=([^&]+)/);
+      this.currentStyle = styleMatch ? styleMatch[1] : 'avataaars';
+      this.currentSeed = seedMatch ? seedMatch[1] : user.uid.substring(0, 5);
     }
 
     this.shadowRoot.innerHTML = `
@@ -64,12 +85,13 @@ class ProfileSection extends HTMLElement {
         .profile-card { background: var(--card-bg); border-radius: 24px; padding: 40px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); text-align: center; }
         h2 { color: var(--primary); margin-bottom: 30px; }
         
-        .avatar-container { margin-bottom: 30px; }
-        .avatar-preview { width: 120px; height: 120px; border-radius: 50%; border: 4px solid var(--primary); background: #f0f0f0; margin-bottom: 15px; }
+        .avatar-box { margin-bottom: 30px; padding: 20px; background: rgba(128,128,128,0.05); border-radius: 20px; }
+        .avatar-preview { width: 120px; height: 120px; border-radius: 50%; border: 4px solid var(--primary); background: #fff; margin-bottom: 20px; }
         
-        .avatar-controls { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }
-        .seed-input { padding: 10px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); width: 150px; text-align: center; }
-        .btn-random { background: var(--secondary); color: #000; border: none; border-radius: 8px; padding: 10px 15px; cursor: pointer; font-weight: 700; font-size: 0.8rem; }
+        .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        select, .seed-input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid rgba(128,128,128,0.2); background: var(--card-bg); color: var(--text-main); font-family: inherit; }
+        
+        .btn-random { background: var(--secondary); color: #000; border: none; border-radius: 10px; padding: 12px; cursor: pointer; font-weight: 700; width: 100%; margin-top: 10px; }
 
         .form-group { text-align: left; margin-bottom: 24px; }
         label { display: block; margin-bottom: 8px; color: var(--text-dim); font-size: 0.9rem; }
@@ -78,73 +100,64 @@ class ProfileSection extends HTMLElement {
         .btn-back { background: none; border: none; color: var(--text-dim); cursor: pointer; margin-top: 20px; text-decoration: underline; }
       </style>
       <div class="profile-card">
-        <h2>내 아바타 만들기</h2>
+        <h2>내 아바타 커스텀</h2>
         
-        <div class="avatar-container">
-          <img class="avatar-preview" id="preview" src="${getAvatarUrl(this.currentSeed)}">
-          <div class="avatar-controls">
-            <input type="text" id="seed-input" class="seed-input" value="${this.currentSeed}" placeholder="고유 키워드">
-            <button id="random-btn" class="btn-random">🎲 랜덤</button>
+        <div class="avatar-box">
+          <img class="avatar-preview" id="preview" src="${getAvatarUrl(this.currentStyle, this.currentSeed)}">
+          <div class="controls-grid">
+            <select id="style-select">
+              ${AVATAR_STYLES.map(s => `<option value="${s.id}" ${this.currentStyle === s.id ? 'selected' : ''}>${s.name}</option>`).join('')}
+            </select>
+            <input type="text" id="seed-input" class="seed-input" value="${this.currentSeed}" placeholder="키워드">
           </div>
-          <p style="color:var(--text-dim); font-size:0.75rem;">나만의 키워드를 입력하거나 랜덤 버튼을 눌러보세요!</p>
+          <button id="random-btn" class="btn-random">🎲 랜덤 생성</button>
         </div>
 
         <div class="form-group">
-          <label>사용할 닉네임</label>
+          <label>닉네임</label>
           <input type="text" id="new-nickname" value="${user.displayName || ''}">
         </div>
         
-        <button id="save-profile" class="btn-save">모든 변경 내용 저장</button>
+        <button id="save-profile" class="btn-save">모든 설정 저장하기</button>
         <button id="back-to-feed" class="btn-back">피드로 돌아가기</button>
       </div>
     `;
 
-    const seedInput = this.shadowRoot.getElementById('seed-input');
     const preview = this.shadowRoot.getElementById('preview');
+    const styleSelect = this.shadowRoot.getElementById('style-select');
+    const seedInput = this.shadowRoot.getElementById('seed-input');
     const randomBtn = this.shadowRoot.getElementById('random-btn');
 
-    // 키워드 입력 시 즉시 아바타 변경
-    seedInput.oninput = (e) => {
-      this.currentSeed = e.target.value;
-      preview.src = getAvatarUrl(this.currentSeed);
+    const updatePreview = () => {
+      this.currentStyle = styleSelect.value;
+      this.currentSeed = seedInput.value;
+      preview.src = getAvatarUrl(this.currentStyle, this.currentSeed);
     };
 
-    // 랜덤 버튼 클릭 시 무작위 시드 생성
+    styleSelect.onchange = updatePreview;
+    seedInput.oninput = updatePreview;
     randomBtn.onclick = () => {
-      this.currentSeed = Math.random().toString(36).substring(7);
-      seedInput.value = this.currentSeed;
-      preview.src = getAvatarUrl(this.currentSeed);
+      seedInput.value = Math.random().toString(36).substring(7);
+      updatePreview();
     };
 
     this.shadowRoot.getElementById('save-profile').onclick = async () => {
-      const newName = this.shadowRoot.getElementById('new-nickname').value.trim();
       const btn = this.shadowRoot.getElementById('save-profile');
       btn.disabled = true; btn.textContent = "저장 중...";
-
       try {
-        const photoURL = getAvatarUrl(this.currentSeed);
+        const photoURL = getAvatarUrl(this.currentStyle, this.currentSeed);
+        await updateProfile(user, { displayName: this.shadowRoot.getElementById('new-nickname').value.trim(), photoURL });
         
-        // 1. Auth 프로필 업데이트
-        await updateProfile(user, { displayName: newName, photoURL: photoURL });
-
-        // 2. 과거 댓글 일괄 업데이트
         const q = query(collection(db, "comments"), where("authorUid", "==", user.uid));
         const querySnapshot = await getDocs(q);
         if (!querySnapshot.empty) {
           const batch = writeBatch(db);
-          querySnapshot.forEach((docSnap) => {
-            batch.update(docSnap.ref, { authorName: newName, authorPhoto: photoURL });
-          });
+          querySnapshot.forEach(d => batch.update(d.ref, { authorName: user.displayName, authorPhoto: photoURL }));
           await batch.commit();
         }
-
-        alert("아바타와 프로필이 저장되었습니다!");
+        alert("저장되었습니다!");
         location.reload();
-      } catch (e) {
-        alert("저장 실패");
-      } finally {
-        btn.disabled = false; btn.textContent = "모든 변경 내용 저장";
-      }
+      } catch (e) { alert("저장 실패"); btn.disabled = false; }
     };
     this.shadowRoot.getElementById('back-to-feed').onclick = () => updateView('feed');
   }
@@ -167,7 +180,7 @@ class CommentsSection extends HTMLElement {
         :host { display: block; width: 100%; max-width: 800px; margin: 0 auto; padding: 40px 20px; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
         .user-info { display: flex; align-items: center; gap: 10px; }
-        .nav-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); background: #eee; }
+        .nav-avatar { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); background: #fff; }
         .comment-input-card { background: var(--card-bg); border-radius: 16px; padding: 24px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 40px; position: sticky; top: 20px; z-index: 10; }
         textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 16px; color: var(--text-main); font-family: inherit; font-size: 1rem; resize: vertical; min-height: 80px; transition: 0.3s; margin-bottom: 12px; }
         textarea:focus { outline: none; border-color: var(--primary); box-shadow: var(--shadow-glow); }
@@ -175,7 +188,7 @@ class CommentsSection extends HTMLElement {
         .comment-item { background: var(--card-bg); border-radius: 12px; padding: 20px; margin-bottom: 12px; border-left: 4px solid var(--primary); transition: 0.3s; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.03); }
         .comment-item.is-reply { margin-left: 40px; border-left-color: var(--secondary); background: rgba(128,128,128,0.02); }
         .item-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-        .item-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #eee; }
+        .item-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: #fff; border: 1px solid rgba(128,128,128,0.1); }
         .author-name { font-weight: 700; color: var(--primary); font-size: 0.9rem; }
         .timestamp { font-size: 0.7rem; color: var(--text-dim); }
         .footer-actions { display: flex; gap: 15px; font-size: 0.85rem; color: var(--text-dim); align-items: center; }
@@ -190,20 +203,17 @@ class CommentsSection extends HTMLElement {
           <button class="theme-toggle" id="theme-btn">${currentTheme === 'dark' ? '☀️' : '🌙'}</button>
           ${this.currentUser ? `
             <div class="user-info">
-              <img class="nav-avatar" src="${this.currentUser.photoURL || getAvatarUrl('default')}">
+              <img class="nav-avatar" src="${this.currentUser.photoURL || getAvatarUrl('avataaars', 'default')}">
               <span id="profile-btn" style="color:var(--primary); cursor:pointer; font-weight:600; text-decoration:underline;">${this.currentUser.displayName || '닉네임 설정'}</span>
               <button id="logout-btn" class="btn-outline" style="font-size:0.8rem;">로그아웃</button>
             </div>
-          ` : `
-            <button id="main-signup-btn" class="btn-outline">회원가입</button>
-            <button id="main-login-btn" class="btn-post" style="float:none;">로그인</button>
-          `}
+          ` : `<div style="display:flex; gap:10px;"><button id="main-signup-btn" class="btn-outline">회원가입</button><button id="main-login-btn" class="btn-post" style="float:none;">로그인</button></div>`}
         </div>
       </div>
       ${this.currentUser ? (isVerified ? `
-        <div class="comment-input-card"><textarea id="main-input" placeholder="새로운 이야기를 시작해보세요..."></textarea><button id="main-submit" class="btn-post">게시하기</button></div>
+        <div class="comment-input-card"><textarea id="main-input" placeholder="이야기를 나눠보세요..."></textarea><button id="main-submit" class="btn-post">게시하기</button></div>
       ` : `
-        <div class="comment-input-card" style="text-align:center;"><p style="color:#ff4d4d; margin-bottom:10px;">⚠️ 이메일 인증이 필요합니다.</p><button id="resend-verify" class="btn-outline">인증 메일 재발송</button></div>
+        <div class="comment-input-card" style="text-align:center;"><p style="color:#ff4d4d; margin-bottom:10px;">⚠️ 이메일 인증 필요</p><button id="resend-verify" class="btn-outline">재발송</button></div>
       `) : `<div style="text-align:center; padding:30px; border:2px dashed rgba(128,128,128,0.2); border-radius:16px; color:var(--text-dim); margin-bottom:40px;">로그인 후 참여하세요.</div>`}
       <div id="comment-list" class="comment-list"></div>
     `;
@@ -227,7 +237,7 @@ class CommentsSection extends HTMLElement {
     try {
       await addDoc(collection(db, "comments"), { 
         content: text, authorName: this.currentUser.displayName || "익명", authorUid: this.currentUser.uid, 
-        authorPhoto: this.currentUser.photoURL || getAvatarUrl('default'),
+        authorPhoto: this.currentUser.photoURL || getAvatarUrl('avataaars', 'default'),
         createdAt: serverTimestamp(), parentId: pid, likes: [] 
       });
       inputEl.value = '';
@@ -251,7 +261,7 @@ class CommentsSection extends HTMLElement {
     const id = data.id;
     const item = document.createElement('div');
     item.className = `comment-item ${isReply ? 'is-reply' : ''}`;
-    const avatar = data.authorPhoto || getAvatarUrl('default');
+    const avatar = data.authorPhoto || getAvatarUrl('avataaars', 'default');
     item.innerHTML = `
       <div class="item-header"><img class="item-avatar" src="${avatar}"><div style="display:flex; flex-direction:column;"><span class="author-name">${data.authorName}${isMine ? ' (나)' : ''}</span><span class="timestamp">${data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString() : '방금 전'}</span></div></div>
       <div class="content" id="content-${id}">${this.escapeHTML(data.content)}</div>

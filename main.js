@@ -112,43 +112,43 @@ class ProfileSection extends HTMLElement {
 }
 customElements.define('profile-section', ProfileSection);
 
-/* 댓글 컴포넌트 (계층형 트리 구조 적용) */
+/* 댓글 컴포넌트 (헤더 및 로그아웃 버튼 가시성 강화) */
 class CommentsSection extends HTMLElement {
-  constructor() { 
-    super(); 
-    this.attachShadow({ mode: 'open' }); 
-    this.currentUser = null; 
-    this.currentBoard = BOARDS[0].id; 
-    this.unsubscribe = null;
-    this.allComments = [];
-  }
-
+  constructor() { super(); this.attachShadow({ mode: 'open' }); this.currentUser = null; this.currentBoard = BOARDS[0].id; this.unsubscribe = null; this.allComments = []; }
   connectedCallback() {
     onAuthStateChanged(auth, (user) => { this.currentUser = user; this.render(); this.loadComments(); });
     window.addEventListener('theme-update', (e) => { const btn = this.shadowRoot.getElementById('theme-btn'); if (btn) btn.textContent = e.detail.theme === 'dark' ? '☀️' : '🌙'; });
   }
-
   render() {
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
     const isVerified = this.currentUser && (this.currentUser.emailVerified || this.currentUser.providerData[0]?.providerId === 'google.com');
     this.shadowRoot.innerHTML = `
       <style>
         @import url('/style.css'); :host { display: block; width: 100%; padding: 20px 0; } 
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; } 
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; gap: 15px; flex-wrap: wrap; } 
+        .header-info { flex: 1; min-width: 180px; }
+        .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; }
+        
+        /* 사용자 정보 영역 고정 */
+        .user-chip { 
+          display: flex; align-items: center; gap: 8px; background: rgba(128,128,128,0.08); 
+          padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(128,128,128,0.1);
+          white-space: nowrap; flex-shrink: 0;
+        }
+        .nav-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; }
+        .nickname { font-weight: 700; color: var(--primary); font-size: 0.85rem; cursor: pointer; text-decoration: underline; }
+        .btn-logout-small { background: none; border: 1px solid var(--text-dim); color: var(--text-dim); padding: 3px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; transition: 0.2s; }
+        .btn-logout-small:hover { border-color: #ff4d4d; color: #ff4d4d; }
+
         .board-tabs { display: flex; gap: 8px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none; } 
         .tab { padding: 8px 16px; border-radius: 20px; background: var(--card-bg); border: 1px solid rgba(128,128,128,0.1); color: var(--text-dim); cursor: pointer; white-space: nowrap; font-size: 0.85rem; transition: 0.3s; } 
         .tab.active { background: var(--primary); color: var(--bg-color); font-weight: 700; } 
         .comment-input-card { background: var(--card-bg); border-radius: var(--radius-lg); padding: 16px; box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); margin-bottom: 30px; position: sticky; top: 10px; z-index: 10; } 
         textarea { width: 100%; background: rgba(128,128,128,0.05); border: 2px solid transparent; border-radius: 12px; padding: 12px; color: var(--text-main); font-family: inherit; font-size: 0.95rem; resize: none; min-height: 50px; } 
         .btn-post { background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; padding: 8px 18px; border-radius: 8px; cursor: pointer; margin-top: 8px; float: right; font-size: 0.9rem; } 
-        
         .comment-item { background: var(--card-bg); border-radius: 12px; padding: 16px; margin-bottom: 10px; border-left: 3px solid var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.02); transition: 0.3s; position: relative; } 
-        
-        /* 계층형 여백 스타일 */
         .comment-item[data-depth="1"] { margin-left: 30px; border-left-color: var(--secondary); background: rgba(128,128,128,0.01); }
         .comment-item[data-depth="2"] { margin-left: 60px; border-left-color: var(--accent); background: rgba(128,128,128,0.02); }
-        .comment-item[data-depth="3"] { margin-left: 90px; border-left-color: var(--text-dim); opacity: 0.9; }
-        
         .item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; } 
         .item-avatar { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid rgba(128,128,128,0.1); } 
         .author-name { font-weight: 700; color: var(--primary); font-size: 0.85rem; } 
@@ -159,76 +159,69 @@ class CommentsSection extends HTMLElement {
         .mention { color: var(--primary); font-weight: 700; margin-right: 5px; }
       </style>
       <div class="header">
-        <h1 style="color:var(--primary); font-size:1.4rem;">SKKU Coffee Chat</h1>
-        <div style="display:flex; align-items:center; gap:10px;">
+        <div class="header-info">
+          <h1 style="color:var(--primary); font-size:1.4rem; margin-bottom:2px;">SKKU Coffee Chat</h1>
+          <p style="color:var(--text-dim); font-size:0.75rem;">학우들과 나누는 따뜻한 대화</p>
+        </div>
+        <div class="header-actions">
           <button style="background:none; border:none; cursor:pointer; font-size:1.1rem;" id="theme-btn">${currentTheme === 'dark' ? '☀️' : '🌙'}</button>
-          ${this.currentUser ? `<span id="profile-btn" style="color:var(--primary); cursor:pointer; font-weight:600; text-decoration:underline; font-size:0.85rem;">${this.currentUser.displayName || '닉네임'}</span>` : `<button id="main-login-btn" class="btn-post" style="margin-top:0;">로그인</button>`}
+          ${this.currentUser ? `
+            <div class="user-chip">
+              <img class="nav-avatar" src="${this.currentUser.photoURL || getAvatarUrl('avataaars', 'default')}">
+              <span id="profile-btn" class="nickname">${this.currentUser.displayName || '닉네임'}</span>
+              <button id="logout-btn" class="btn-logout-small">로그아웃</button>
+            </div>
+          ` : `<button id="main-login-btn" class="btn-post" style="margin-top:0; padding:6px 14px;">로그인</button>`}
         </div>
       </div>
       <div class="board-tabs">${BOARDS.map(b => `<div class="tab ${this.currentBoard === b.id ? 'active' : ''}" data-id="${b.id}">${b.icon} ${b.name}</div>`).join('')}</div>
-      ${this.currentUser ? (isVerified ? `<div class="comment-input-card"><textarea id="main-input" placeholder="새로운 이야기 남기기..."></textarea><button id="main-submit" class="btn-post">게시</button><div style="clear:both;"></div></div>` : `<div class="comment-input-card" style="text-align:center; font-size:0.85rem;">인증 필요</div>`) : `<div style="text-align:center; padding:20px; border:2px dashed rgba(128,128,128,0.1); border-radius:16px; color:var(--text-dim); margin-bottom:30px; font-size:0.85rem;">로그인 후 참여하세요.</div>`}
+      ${this.currentUser ? (isVerified ? `<div class="comment-input-card"><textarea id="main-input" placeholder="이야기 남기기..."></textarea><button id="main-submit" class="btn-post">게시</button><div style="clear:both;"></div></div>` : `<div class="comment-input-card" style="text-align:center; font-size:0.85rem; color:#ff4d4d;">⚠️ 이메일 인증 필요 <button id="resend-verify" style="background:none; border:none; text-decoration:underline; color:inherit; cursor:pointer;">재발송</button></div>`) : `<div style="text-align:center; padding:20px; border:2px dashed rgba(128,128,128,0.1); border-radius:16px; color:var(--text-dim); margin-bottom:30px; font-size:0.85rem;">로그인 후 참여하세요.</div>`}
       <div id="comment-list"></div>
     `;
     this.setupEventListeners();
   }
-
   setupEventListeners() {
     this.shadowRoot.getElementById('theme-btn').onclick = toggleTheme;
+    if (this.shadowRoot.getElementById('logout-btn')) this.shadowRoot.getElementById('logout-btn').onclick = () => signOut(auth);
     if (this.shadowRoot.getElementById('profile-btn')) this.shadowRoot.getElementById('profile-btn').onclick = () => updateView('profile');
+    if (this.shadowRoot.getElementById('resend-verify')) this.shadowRoot.getElementById('resend-verify').onclick = () => sendEmailVerification(auth.currentUser);
     if (this.shadowRoot.getElementById('main-login-btn')) this.shadowRoot.getElementById('main-login-btn').onclick = () => window.dispatchEvent(new CustomEvent('show-login'));
     this.shadowRoot.querySelectorAll('.tab').forEach(tab => { tab.onclick = () => { this.currentBoard = tab.dataset.id; this.render(); this.loadComments(); }; });
     const sub = this.shadowRoot.getElementById('main-submit');
     if (sub) sub.onclick = () => this.postComment(this.shadowRoot.getElementById('main-input'));
   }
-
   async postComment(inputEl, pid = null) {
     const text = inputEl.value.trim();
     if (!text || !this.currentUser) return;
     try {
-      await addDoc(collection(db, "comments"), { 
-        content: text, authorName: this.currentUser.displayName || "익명", 
-        authorUid: this.currentUser.uid, authorPhoto: this.currentUser.photoURL || '',
-        boardId: this.currentBoard, parentId: pid, createdAt: serverTimestamp(), likes: [] 
-      });
+      await addDoc(collection(db, "comments"), { content: text, authorName: this.currentUser.displayName || "익명", authorUid: this.currentUser.uid, authorPhoto: this.currentUser.photoURL || '', boardId: this.currentBoard, parentId: pid, createdAt: serverTimestamp(), likes: [] });
       inputEl.value = '';
       if (pid) this.shadowRoot.getElementById(`reply-box-${pid}`).innerHTML = '';
     } catch (e) { alert("등록 실패"); }
   }
-
   loadComments() {
     if (this.unsubscribe) this.unsubscribe();
     onSnapshot(query(collection(db, "comments"), where("boardId", "==", this.currentBoard)), (snapshot) => {
       this.allComments = []; snapshot.forEach(d => this.allComments.push({ id: d.id, ...d.data() }));
       this.allComments.sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
-      
+      const roots = this.allComments.filter(c => !c.parentId).reverse();
       const listEl = this.shadowRoot.getElementById('comment-list');
       listEl.innerHTML = '';
-      
-      // 트리 구조 생성 및 렌더링
-      const roots = this.allComments.filter(c => !c.parentId).reverse();
       roots.forEach(root => this.renderRecursive(listEl, root, 0));
     });
   }
-
-  // 재귀적으로 댓글 트리 렌더링
   renderRecursive(container, comment, depth) {
     this.renderItem(container, comment, depth);
-    const children = this.allComments.filter(c => c.parentId === comment.id);
-    children.forEach(child => this.renderRecursive(container, child, depth + 1));
+    this.allComments.filter(c => c.parentId === comment.id).forEach(child => this.renderRecursive(container, child, depth + 1));
   }
-
   renderItem(container, data, depth) {
     const isMine = this.currentUser && data.authorUid === this.currentUser.uid;
     const id = data.id;
     const item = document.createElement('div');
     item.className = 'comment-item';
-    item.dataset.depth = Math.min(depth, 3); // 최대 3단계까지 여백 적용
-    
+    item.dataset.depth = Math.min(depth, 2);
     let contentHTML = this.escapeHTML(data.content);
-    if (depth > 0) {
-      contentHTML = contentHTML.replace(/^(@[^\s]+)/, '<span class="mention">$1</span>');
-    }
-
+    if (depth > 0) contentHTML = contentHTML.replace(/^(@[^\s]+)/, '<span class="mention">$1</span>');
     item.innerHTML = `
       <div class="item-header"><img class="item-avatar" src="${data.authorPhoto || getAvatarUrl('avataaars', 'default')}"><span class="author-name">${data.authorName}${isMine ? ' (나)' : ''}</span><span class="timestamp">${data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString('ko-KR', {hour:'2-digit', minute:'2-digit'}) : ''}</span></div>
       <div class="content" id="content-${id}">${contentHTML}</div>
@@ -240,39 +233,21 @@ class CommentsSection extends HTMLElement {
       <div id="reply-box-${id}"></div>
     `;
     container.appendChild(item);
-    
-    this.shadowRoot.getElementById(`like-${id}`).onclick = async () => {
-      if (!this.currentUser) return window.dispatchEvent(new CustomEvent('show-login'));
-      const isLiked = data.likes?.includes(this.currentUser.uid);
-      await updateDoc(doc(db, "comments", id), { likes: isLiked ? arrayRemove(this.currentUser.uid) : arrayUnion(this.currentUser.uid) });
-    };
-    
+    this.shadowRoot.getElementById(`like-${id}`).onclick = async () => { if (!this.currentUser) return window.dispatchEvent(new CustomEvent('show-login')); const isLiked = data.likes?.includes(this.currentUser.uid); await updateDoc(doc(db, "comments", id), { likes: isLiked ? arrayRemove(this.currentUser.uid) : arrayUnion(this.currentUser.uid) }); };
     this.shadowRoot.getElementById(`rep-${id}`).onclick = () => this.showReplyBox(id, data.authorName);
-    
     if (isMine) {
       this.shadowRoot.getElementById(`del-${id}`).onclick = async () => { if (confirm("삭제하실거에요..?")) await deleteDoc(doc(db, "comments", id)); };
       this.shadowRoot.getElementById(`ed-${id}`).onclick = () => this.startEdit(id, data.content);
     }
   }
-
   showReplyBox(targetId, targetName) {
     if (!this.currentUser) return window.dispatchEvent(new CustomEvent('show-login'));
     const box = this.shadowRoot.getElementById(`reply-box-${targetId}`);
     if (box.innerHTML !== '') { box.innerHTML = ''; return; }
-    
-    box.innerHTML = `
-      <div style="margin-top:8px;">
-        <textarea id="rin-${targetId}" placeholder="${targetName}님에게 답글 작성..." style="min-height:40px; font-size:0.9rem;">@${targetName} </textarea>
-        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:5px;">
-          <button id="rcan-${targetId}" style="font-size:0.75rem; cursor:pointer; background:none; border:none; color:var(--text-dim);">취소</button>
-          <button class="btn-post" style="padding:4px 12px; font-size:0.75rem; margin-top:0;" id="rsub-${targetId}">등록</button>
-        </div>
-      </div>
-    `;
+    box.innerHTML = `<div style="margin-top:8px;"><textarea id="rin-${targetId}" placeholder="${targetName}님에게 답글 작성..." style="min-height:40px; font-size:0.9rem;">@${targetName} </textarea><div style="display:flex; justify-content:flex-end; gap:8px; margin-top:5px;"><button id="rcan-${targetId}" style="font-size:0.75rem; cursor:pointer; background:none; border:none; color:var(--text-dim);">취소</button><button class="btn-post" style="padding:4px 12px; font-size:0.75rem; margin-top:0;" id="rsub-${targetId}">등록</button></div></div>`;
     this.shadowRoot.getElementById(`rcan-${targetId}`).onclick = () => box.innerHTML = '';
     this.shadowRoot.getElementById(`rsub-${targetId}`).onclick = () => this.postComment(this.shadowRoot.getElementById(`rin-${targetId}`), targetId);
   }
-
   async startEdit(id, old) {
     const cEl = this.shadowRoot.getElementById(`content-${id}`);
     const aEl = this.shadowRoot.getElementById(`act-${id}`);
@@ -280,10 +255,7 @@ class CommentsSection extends HTMLElement {
     cEl.innerHTML = `<textarea id="in-${id}" style="min-height:50px; font-size:0.95rem;">${old}</textarea>`;
     aEl.innerHTML = `<div style="display:flex; justify-content:flex-end; gap:10px;"><button id="can-${id}" style="font-size:0.75rem; color:var(--text-dim); background:none; border:none; cursor:pointer;">취소</button><button id="sav-${id}" style="font-size:0.75rem; color:var(--primary); font-weight:700; background:none; border:none; cursor:pointer;">저장</button></div>`;
     this.shadowRoot.getElementById(`can-${id}`).onclick = () => { cEl.innerHTML = oC; aEl.innerHTML = oA; };
-    this.shadowRoot.getElementById(`sav-${id}`).onclick = async () => {
-      const val = this.shadowRoot.getElementById(`in-${id}`).value.trim();
-      if (val) await updateDoc(doc(db, "comments", id), { content: val });
-    };
+    this.shadowRoot.getElementById(`sav-${id}`).onclick = async () => { const val = this.shadowRoot.getElementById(`in-${id}`).value.trim(); if (val) await updateDoc(doc(db, "comments", id), { content: val }); };
   }
   escapeHTML(str) { const div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
 }
@@ -301,8 +273,8 @@ class LoginScreen extends HTMLElement {
   render() {
     if (!this.isVisible) { this.shadowRoot.innerHTML = ''; return; }
     this.shadowRoot.innerHTML = `
-      <style>@import url('/style.css'); .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); } .login-card { background: var(--card-bg); border-radius: 24px; padding: 30px; width: min(380px, 90%); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); position: relative; } h2 { text-align: center; margin-bottom: 20px; color: var(--primary); font-size: 1.4rem; } input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); box-sizing: border-box; margin-bottom: 12px; font-size: 0.9rem; } .btn-submit { width: 100%; padding: 12px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; } .btn-close { position: absolute; top: 12px; right: 12px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-size: 1.4rem; } .btn-google { width: 100%; padding: 10px; background: #fff; color: #000; border: 1px solid #ddd; border-radius: 12px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; }</style>
-      <div class="overlay"><div class="login-card"><button class="btn-close" id="close-btn">&times;</button><h2>${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '회원가입' : '비밀번호 찾기'}</h2><form id="auth-form">${this.mode === 'signup' ? `<input type="text" id="nickname" placeholder="닉네임" required>` : ''}<input type="email" id="email" placeholder="이메일" required>${this.mode !== 'reset' ? `<input type="password" id="password" placeholder="비밀번호" required minlength="6">` : ''}<button type="submit" id="submit-btn" class="btn-submit">${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '가입하기' : '발송'}</button></form><button id="google-btn" class="btn-google"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18"> Google 계정 사용</button><div style="text-align:center; margin-top:15px; font-size:0.8rem; color:var(--text-dim);"><a id="toggle-link" style="color:var(--primary); cursor:pointer;">${this.mode === 'login' ? '회원가입 하러가기' : '로그인 하러가기'}</a></div></div></div>
+      <style>@import url('/style.css'); .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); } .login-card { background: var(--card-bg); border-radius: 24px; padding: 30px; width: min(380px, 90%); box-shadow: var(--shadow-deep); border: 1px solid rgba(128,128,128,0.1); position: relative; } h2 { text-align: center; margin-bottom: 20px; color: var(--primary); font-size: 1.4rem; } input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); box-sizing: border-box; margin-bottom: 12px; font-size: 0.9rem; } .btn-submit { width: 100%; padding: 14px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; } .btn-close { position: absolute; top: 12px; right: 12px; color: var(--text-dim); cursor: pointer; background: none; border: none; font-size: 1.4rem; } .btn-google { width: 100%; padding: 10px; background: #fff; color: #000; border: 1px solid #ddd; border-radius: 10px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 20px; }</style>
+      <div class="overlay"><div class="login-card"><button class="btn-close" id="close-btn">&times;</button><h2>${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '회원가입' : '비밀번호 찾기'}</h2><form id="auth-form">${this.mode === 'signup' ? `<input type="text" id="nickname" placeholder="닉네임" required>` : ''}<input type="email" id="email" placeholder="이메일" required>${this.mode !== 'reset' ? `<input type="password" id="password" placeholder="비밀번호" required minlength="6">` : ''}<button type="submit" id="submit-btn" class="btn-submit">${this.mode === 'login' ? '로그인' : this.mode === 'signup' ? '가입하기' : '발송'}</button></form><button id="google-btn" class="btn-google"><img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="16"> Google 계정 사용</button><div style="text-align:center; margin-top:15px; font-size:0.8rem; color:var(--text-dim);"><a id="toggle-link" style="color:var(--primary); cursor:pointer;">${this.mode === 'login' ? '회원가입 하러가기' : '로그인 하러가기'}</a></div></div></div>
     `;
     this.shadowRoot.getElementById('close-btn').onclick = () => { this.isVisible = false; this.render(); };
     this.shadowRoot.getElementById('toggle-link').onclick = () => this.setMode(this.mode === 'login' ? 'signup' : 'login');

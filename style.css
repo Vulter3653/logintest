@@ -1,19 +1,19 @@
 :root {
-  /* Modern Colors - OKLCH */
-  --bg-color: oklch(0.15 0.02 260);
-  --card-bg: oklch(0.22 0.03 260);
-  --primary: oklch(0.7 0.25 280);
-  --primary-glow: oklch(0.7 0.25 280 / 0.4);
-  --secondary: oklch(0.65 0.15 150);
-  --text-main: oklch(0.95 0.01 260);
-  --text-dim: oklch(0.75 0.02 260);
-  --accent: oklch(0.85 0.15 320);
+  /* 성균관대 & Coffee Chat 테마 - OKLCH */
+  --bg-color: oklch(0.15 0.02 160); /* 딥 성균 그린 베이스 다크 모드 */
+  --card-bg: oklch(0.22 0.03 160); /* 약간 밝은 그린 톤 카드 */
+  --primary: oklch(0.85 0.15 85);  /* 성균 은행잎 노란색 (Ginkgo Yellow) */
+  --primary-glow: oklch(0.85 0.15 85 / 0.3);
+  --secondary: oklch(0.5 0.1 160); /* 성균 그린 (Evergreen) */
+  --text-main: oklch(0.95 0.02 85); /* 크리미 화이트 */
+  --text-dim: oklch(0.75 0.03 160);
+  --accent: oklch(0.7 0.12 40);    /* 따뜻한 커피 브라운 포인트 */
 
   /* Spacing & Shadows */
   --radius-lg: 24px;
   --radius-md: 12px;
   --shadow-deep: 0 20px 50px -10px oklch(0 0 0 / 0.5);
-  --shadow-glow: 0 0 15px var(--primary-glow);
+  --shadow-glow: 0 0 20px var(--primary-glow);
   
   --font-main: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
@@ -29,24 +29,28 @@ body {
   background-color: var(--bg-color);
   color: var(--text-main);
   min-height: 100vh;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
   position: relative;
+  transition: background-color 0.5s ease;
 }
 
-/* Texture overlay for premium feel */
+/* Texture overlay: 커피 향이 느껴지는 미세한 노이즈 텍스처 */
 body::before {
   content: "";
-  position: absolute;
+  position: fixed;
   inset: 0;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.04;
   pointer-events: none;
-  z-index: 1;
+  z-index: 100;
 }
 
 h1, h2, h3 {
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 800;
+  letter-spacing: -0.03em;
 }
+
+/* 스크롤바 커스텀 */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-color); }
+::-webkit-scrollbar-thumb { background: var(--secondary); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }

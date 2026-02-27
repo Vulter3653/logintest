@@ -73,11 +73,11 @@ class CommentsSection extends HTMLElement {
         .btn-logout { background: transparent; border: 1px solid var(--text-dim); color: var(--text-dim); padding: 8px 16px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; }
       </style>
       <div class="header">
-        <div><h1 style="color:var(--text-main); margin-bottom:4px; font-size:1.8rem;">Global Feed</h1><p style="color:var(--text-dim); font-size:0.85rem;">실시간으로 소통하는 커뮤니티</p></div>
+        <div><h1 style="color:var(--text-main); margin-bottom:4px; font-size:1.8rem;">SKKU Marketing Coffee Chat</h1><p style="color:var(--text-dim); font-size:0.85rem;">성균관대 마케팅 학우들을 위한 실시간 소통 공간</p></div>
         ${this.currentUser ? `<div class="user-info"><span>${this.currentUser.email || this.currentUser.displayName}</span><button id="logout-btn" class="btn-logout">로그아웃</button></div>` : `<button id="main-login-btn" class="btn-post" style="float:none;">로그인</button>`}
       </div>
-      ${this.currentUser ? `<div class="comment-input-card"><textarea id="comment-input" placeholder="커뮤니티에 메시지를 남겨보세요..."></textarea><button id="submit-btn" class="btn-post">메시지 전송</button></div>` : `<div class="login-prompt">메시지를 작성하려면 <span id="prompt-login-btn" class="btn-login-redirect">로그인</span>이 필요합니다.</div>`}
-      <div id="comment-list" class="comment-list"><p style="text-align:center; color:var(--text-dim)">메시지를 불러오는 중...</p></div>
+      ${this.currentUser ? `<div class="comment-input-card"><textarea id="comment-input" placeholder="커피 한 잔 하며 나누고 싶은 이야기를 적어주세요..."></textarea><button id="submit-btn" class="btn-post">메시지 전송</button></div>` : `<div class="login-prompt">메시지를 작성하려면 <span id="prompt-login-btn" class="btn-login-redirect">로그인</span>이 필요합니다.</div>`}
+      <div id="comment-list" class="comment-list"><p style="text-align:center; color:var(--text-dim)">이야기를 불러오는 중...</p></div>
     `;
     this.setupEventListeners();
   }
@@ -142,32 +142,19 @@ class CommentsSection extends HTMLElement {
     const actionsEl = this.shadowRoot.getElementById(`actions-${id}`);
     const originalContentHTML = contentEl.innerHTML;
     const originalActionsHTML = actionsEl.innerHTML;
-
-    // 내용 영역을 textarea로 교체
     contentEl.innerHTML = `<textarea id="edit-input-${id}" style="min-height:60px; margin-top:10px; margin-bottom:0;">${oldContent}</textarea>`;
-    
-    // 버튼 영역을 저장/취소로 교체
-    actionsEl.innerHTML = `
-      <button class="btn-action btn-cancel" id="btn-cancel-${id}">취소</button>
-      <button class="btn-action btn-save" id="btn-save-${id}">저장</button>
-    `;
-
-    // 취소 버튼 로직
+    actionsEl.innerHTML = `<button class="btn-action btn-cancel" id="btn-cancel-${id}">취소</button><button class="btn-action btn-save" id="btn-save-${id}">저장</button>`;
     this.shadowRoot.getElementById(`btn-cancel-${id}`).onclick = () => {
       contentEl.innerHTML = originalContentHTML;
       actionsEl.innerHTML = originalActionsHTML;
-      // 이벤트 리스너 재연결
       this.shadowRoot.getElementById(`btn-delete-${id}`).onclick = () => this.deleteComment(id);
       this.shadowRoot.getElementById(`btn-edit-${id}`).onclick = () => this.startEdit(id, oldContent);
     };
-
-    // 저장 버튼 로직
     this.shadowRoot.getElementById(`btn-save-${id}`).onclick = async () => {
       const newContent = this.shadowRoot.getElementById(`edit-input-${id}`).value.trim();
       if (!newContent) return;
       try {
         await updateDoc(doc(db, "comments", id), { content: newContent });
-        // onSnapshot이 자동으로 리스트를 갱신하므로 UI 복구 코드는 생략 가능합니다.
       } catch (e) { alert("수정 권한이 없습니다."); }
     };
   }
@@ -249,8 +236,3 @@ class LoginScreen extends HTMLElement {
   }
 }
 customElements.define('login-screen', LoginScreen);
-
-// 초기 진입점 설정
-document.body.innerHTML = `<comments-section></comments-section><login-screen></login-screen><div style="position: fixed; top: -10%; left: -10%; width: 50%; height: 50%; background: var(--primary); filter: blur(150px); opacity: 0.15; border-radius: 50%; pointer-events: none; z-index: -1;"></div><div style="position: fixed; bottom: -10%; right: -10%; width: 40%; height: 40%; background: var(--accent); filter: blur(150px); opacity: 0.1; border-radius: 50%; pointer-events: none; z-index: -1;"></div>`;
-document.body.style.display = 'block';
-document.body.style.overflow = 'auto';

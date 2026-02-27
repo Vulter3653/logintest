@@ -20,7 +20,10 @@ import {
   deleteDoc, 
   updateDoc,
   arrayUnion,
-  arrayRemove
+  arrayRemove,
+  where,
+  getDocs,
+  writeBatch
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 /* 테마 관리 */
@@ -58,6 +61,7 @@ class ProfileSection extends HTMLElement {
         input { width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(128,128,128,0.2); background: rgba(128,128,128,0.05); color: var(--text-main); box-sizing: border-box; font-size: 1rem; }
         .btn-save { width: 100%; padding: 16px; background: var(--primary); color: var(--bg-color); font-weight: 700; border: none; border-radius: 12px; cursor: pointer; margin-top: 10px; transition: 0.3s; }
         .btn-back { background: none; border: none; color: var(--text-dim); cursor: pointer; margin-top: 20px; text-decoration: underline; }
+        .status-msg { font-size: 0.8rem; color: var(--secondary); margin-top: 10px; display: none; }
       </style>
       <div class="profile-card">
         <h2>프로필 설정</h2>
@@ -65,6 +69,7 @@ class ProfileSection extends HTMLElement {
         <div class="form-group"><label>이메일</label><input type="text" value="${user.email}" disabled style="opacity:0.6;"></div>
         <div class="form-group"><label>닉네임</label><input type="text" id="new-nickname" value="${user.displayName || ''}" placeholder="사용할 닉네임을 입력하세요"></div>
         <button id="save-profile" class="btn-save">정보 저장하기</button>
+        <div id="status-msg" class="status-msg">과거 댓글 닉네임 업데이트 중...</div>
         <button id="back-to-feed" class="btn-back">피드로 돌아가기</button>
       </div>
     `;
@@ -73,22 +78,37 @@ class ProfileSection extends HTMLElement {
       if (!newName) return alert("닉네임을 입력해 주세요.");
       
       const btn = this.shadowRoot.getElementById('save-profile');
+      const statusMsg = this.shadowRoot.getElementById('status-msg');
       btn.disabled = true; btn.textContent = "저장 중...";
 
       try {
-        // 현재 인증된 사용자를 다시 가져와서 업데이트
         const currentUser = auth.currentUser;
         if (currentUser) {
+          // 1. Auth 프로필 업데이트
           await updateProfile(currentUser, { displayName: newName });
-          alert("프로필이 성공적으로 업데이트되었습니다!");
-          // 즉시 반영을 위해 페이지 새로고침 또는 뷰 전환
+
+          // 2. 작성한 모든 댓글의 닉네임 일괄 업데이트
+          statusMsg.style.display = 'block';
+          const q = query(collection(db, "comments"), where("authorUid", "==", currentUser.uid));
+          const querySnapshot = await getDocs(q);
+          
+          if (!querySnapshot.empty) {
+            const batch = writeBatch(db);
+            querySnapshot.forEach((docSnap) => {
+              batch.update(docSnap.ref, { authorName: newName });
+            });
+            await batch.commit();
+          }
+
+          alert("프로필과 작성한 모든 댓글이 업데이트되었습니다!");
           location.reload(); 
         }
       } catch (e) {
-        console.error("프로필 업데이트 에러:", e);
-        alert("프로필 수정 중 오류가 발생했습니다: " + e.message);
+        console.error("업데이트 에러:", e);
+        alert("오류가 발생했습니다: " + e.message);
       } finally {
         btn.disabled = false; btn.textContent = "정보 저장하기";
+        statusMsg.style.display = 'none';
       }
     };
     this.shadowRoot.getElementById('back-to-feed').onclick = () => updateView('feed');
@@ -98,25 +118,14 @@ customElements.define('profile-section', ProfileSection);
 
 /* 댓글 컴포넌트 */
 class CommentsSection extends HTMLElement {
-  constructor() {
-    super();
-    this.attachShadow({ mode: 'open' });
-    this.currentUser = null;
-  }
-
+  constructor() { super(); this.attachShadow({ mode: 'open' }); this.currentUser = null; }
   connectedCallback() {
-    onAuthStateChanged(auth, (user) => {
-      this.currentUser = user;
-      this.render();
-      this.loadComments();
-    });
+    onAuthStateChanged(auth, (user) => { this.currentUser = user; this.render(); this.loadComments(); });
     window.addEventListener('theme-changed', () => this.render());
   }
-
   render() {
     const isVerified = this.currentUser && (this.currentUser.emailVerified || this.currentUser.providerData[0]?.providerId === 'google.com');
     const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-
     this.shadowRoot.innerHTML = `
       <style>
         @import url('/style.css');
@@ -135,7 +144,6 @@ class CommentsSection extends HTMLElement {
         .content { color: var(--text-main); font-size: 1rem; line-height: 1.6; white-space: pre-wrap; margin-bottom: 15px; }
         .footer-actions { display: flex; gap: 15px; font-size: 0.85rem; color: var(--text-dim); align-items: center; }
         .action-link { cursor: pointer; display: flex; align-items: center; gap: 5px; transition: 0.2s; user-select: none; }
-        .action-link:hover { color: var(--primary); }
         .like-btn { color: #ff4d4d; }
         .like-btn.not-liked { opacity: 0.6; }
         .theme-toggle { background: var(--card-bg); border: 1px solid rgba(128,128,128,0.2); width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; }
@@ -162,7 +170,6 @@ class CommentsSection extends HTMLElement {
     `;
     this.setupEventListeners();
   }
-
   setupEventListeners() {
     this.shadowRoot.getElementById('theme-btn').onclick = toggleTheme;
     if (this.shadowRoot.getElementById('logout-btn')) this.shadowRoot.getElementById('logout-btn').onclick = () => signOut(auth);
@@ -175,7 +182,6 @@ class CommentsSection extends HTMLElement {
     const subBtn = this.shadowRoot.getElementById('main-submit');
     if (subBtn) subBtn.onclick = () => this.postComment(this.shadowRoot.getElementById('main-input'));
   }
-
   async postComment(inputEl, pid = null) {
     const text = inputEl.value.trim();
     if (!text || !this.currentUser) return;
@@ -184,7 +190,6 @@ class CommentsSection extends HTMLElement {
       inputEl.value = '';
     } catch (e) { alert("오류가 발생했습니다."); }
   }
-
   loadComments() {
     const listEl = this.shadowRoot.getElementById('comment-list');
     onSnapshot(query(collection(db, "comments"), orderBy("createdAt", "asc")), (snapshot) => {
@@ -197,7 +202,6 @@ class CommentsSection extends HTMLElement {
       });
     });
   }
-
   renderItem(container, data, isReply) {
     const isMine = this.currentUser && data.authorUid === this.currentUser.uid;
     const isLiked = this.currentUser && data.likes?.includes(this.currentUser.uid);
@@ -225,7 +229,6 @@ class CommentsSection extends HTMLElement {
       this.shadowRoot.getElementById(`ed-${id}`).onclick = () => this.startEdit(id, data.content);
     }
   }
-
   showReplyBox(pid) {
     const box = this.shadowRoot.getElementById(`reply-box-${pid}`);
     if (box.innerHTML !== '') { box.innerHTML = ''; return; }
@@ -233,7 +236,6 @@ class CommentsSection extends HTMLElement {
     this.shadowRoot.getElementById(`rcan-${pid}`).onclick = () => box.innerHTML = '';
     this.shadowRoot.getElementById(`rsub-${pid}`).onclick = () => this.postComment(this.shadowRoot.getElementById(`rin-${pid}`), pid);
   }
-
   async startEdit(id, old) {
     const cEl = this.shadowRoot.getElementById(`content-${id}`);
     const aEl = this.shadowRoot.getElementById(`actions-${id}`);
@@ -288,9 +290,7 @@ class LoginScreen extends HTMLElement {
     `;
     this.shadowRoot.getElementById('close-btn').onclick = () => { this.isVisible = false; this.render(); };
     this.shadowRoot.getElementById('toggle-link').onclick = () => this.setMode(this.mode === 'login' ? 'signup' : 'login');
-    this.shadowRoot.getElementById('google-btn').onclick = async () => { 
-      try { googleProvider.setCustomParameters({ prompt: 'select_account' }); await signInWithPopup(auth, googleProvider); } catch(e) {} 
-    };
+    this.shadowRoot.getElementById('google-btn').onclick = async () => { try { googleProvider.setCustomParameters({ prompt: 'select_account' }); await signInWithPopup(auth, googleProvider); } catch(e) {} };
     this.shadowRoot.getElementById('auth-form').onsubmit = async (e) => {
       e.preventDefault();
       const email = this.shadowRoot.getElementById('email').value;
@@ -304,7 +304,7 @@ class LoginScreen extends HTMLElement {
           const res = await createUserWithEmailAndPassword(auth, email, password);
           await updateProfile(res.user, { displayName: nickname });
           await sendEmailVerification(res.user);
-          alert("인증 메일이 발송되었습니다!");
+          alert("인증 메일 발송! 확인 후 로그인해 주세요.");
           await signOut(auth);
         } else await sendPasswordResetEmail(auth, email);
       } catch (error) { alert("오류가 발생했습니다."); } finally { this.render(); }
